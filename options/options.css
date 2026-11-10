@@ -610,6 +610,66 @@ body {
   margin-top: 10px;
 }
 
+/* About & Info Tab */
+.nac-about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.nac-about-item {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nac-about-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nac-about-val {
+  font-size: 13px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.nac-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.nac-feat-item {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.nac-feat-item h4 {
+  font-size: 14px;
+  color: #93c5fd;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nac-feat-item p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 /* Accessibility Focus Ring (WCAG 2.1 AA) */
 .nac-btn:focus-visible,
 .nac-nav-item:focus-visible,

@@ -4,6 +4,48 @@
 
 ---
 
+## 📌 Project About & Official Descriptions
+
+### 📖 About the Project
+**Novel Audio Companion (NAC)** was created to solve a persistent, universal frustration experienced by millions of online web novel readers across communities like `r/noveltranslations`, `r/ProgressionFantasy`, `r/MicrosoftEdge`, RoyalRoad, and Wuxiaworld: generic browser text-to-speech tools stop speaking after 15 seconds, butcher fantasy vocabulary (*Qi*, *Dao*, *Dantian*), break when loading the next chapter, and offer no lock-screen or headphone media controls.
+
+NAC is a client-side, privacy-respecting browser extension and standalone userscript that operates as a high-fidelity audiobook narrator and reader canvas. It automatically indexes chapter paragraphs, silences disruptive ad networks without triggering anti-adblock scripts, applies custom phonetic pronunciation substitutions in real time, and allows listeners to control narration directly from their Bluetooth earbuds or lock screen.
+
+---
+
+### 📋 Ready-to-Use Store & Repository Descriptions
+
+#### 1. GitHub Repository "About" (Short Bio)
+```text
+Premium Manifest V3 Chrome/Edge extension & userscript for web novel readers. Continuous AI text-to-speech, phonetic dictionary, ad killer, auto-next chapter & clean reader view.
+```
+**Suggested Topics/Tags**: `chrome-extension`, `edge-addon`, `text-to-speech`, `tts`, `web-novels`, `light-novels`, `reader-mode`, `phonetic-dictionary`, `manifest-v3`, `xianxia`, `litrpg`, `audiobook`
+
+#### 2. Chrome Web Store Short Description (Strict <= 132 Chars)
+```text
+Audiobook narration and clean reader for web novels. Natural voices, auto-next chapter, ad killer, word tracking and dictionary.
+```
+*(Exact length: 128 characters — verified 100% compliant with Chrome Web Store limit).*
+
+#### 3. Chrome Web Store & Edge Add-ons Detailed Listing Copy
+```markdown
+Transform any web novel or light novel into a smooth, distraction-free audiobook.
+
+🎧 WHY WEB NOVEL READERS LOVE NOVEL AUDIO COMPANION:
+• 🎙️ Natural Voice Narration: Prioritizes Microsoft Natural / Neural cloud voices and Google Neural speech engines.
+• ⚡ Freeze-Free Playback: Intelligent keep-alive heartbeat eliminates Chromium's 15-second speech freeze bug.
+• 📖 Phonetic Dictionary: Pronounces Xianxia terms (Qi, Dao, Dantian) and LitRPG system prompts accurately with 1-click presets.
+• 🔄 Smart Auto-Next Chapter: Seamlessly detects next-chapter links and autoplays without touching your device.
+• 🎧 Earbud & Media Key Controls: Play, pause, or skip paragraphs using Bluetooth headphones or lock-screen controls.
+• 🛡️ Ad & Overlay Suppressor: Silences sticky video players (Humix), Ezoic banners, and ad traps safely.
+• 👁️ Kindle-Style Reader View: Choose from 4 reading themes (Midnight Slate, OLED Pitch Black, Cozy Sepia, Clean Daylight) with book typography.
+• ⏱️ Sleep Timer: Set a 15, 30, 45, or 60-minute sleep timer with a gentle 30-second volume fade-out.
+
+100% private and client-side. No tracking, no external accounts, no data collection.
+```
+
+---
+
 ## 🌟 Why This Extension Was Built (Community Pain Points & Engineering Solutions)
 
 Web novel readers (across communities like `r/noveltranslations`, `r/ProgressionFantasy`, `r/MicrosoftEdge`, RoyalRoad, and Wuxiaworld) frequently face recurring pain points when using built-in browser speech or general TTS tools:

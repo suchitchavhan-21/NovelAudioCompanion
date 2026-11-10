@@ -43,6 +43,10 @@
           <span class="nac-nav-icon">💾</span>
           <span>Backup & Shortcuts</span>
         </button>
+        <button class="nac-nav-item" data-tab="tab-about">
+          <span class="nac-nav-icon">ℹ️</span>
+          <span>About & Info</span>
+        </button>
       </nav>
 
       <div class="nac-sidebar-footer">
@@ -456,6 +460,77 @@
               📤 Import Settings (JSON)
               <input type="file" id="nac-file-import" accept=".json" style="display: none;">
             </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 7: About & Info -->
+      <section class="nac-tab-panel" id="tab-about">
+        <div class="nac-panel-header">
+          <h2>About Novel Audio Companion</h2>
+          <p>An open-source, community-driven text-to-speech and distraction-free reading companion designed specifically for web and light novel enthusiasts.</p>
+        </div>
+
+        <div class="nac-card">
+          <h3>Project Overview & Description</h3>
+          <p class="nac-card-desc" style="line-height: 1.6; margin-bottom: 14px;">
+            <strong>Novel Audio Companion (NAC)</strong> bridges the gap between ad-cluttered web novel sites and true audiobook-quality narration. General browser speech tools frequently freeze after 15 seconds, mispronounce fantasy terminology, fail across chapter boundaries, and lack lock-screen media controls. NAC provides a specialized, privacy-focused client engine that sanitizes novel chapters, maintains uninterrupted speech, and provides an immersive reading canvas.
+          </p>
+
+          <div class="nac-about-grid">
+            <div class="nac-about-item">
+              <span class="nac-about-label">Version</span>
+              <strong class="nac-about-val">v2.0.0 (Production Release)</strong>
+            </div>
+            <div class="nac-about-item">
+              <span class="nac-about-label">Architecture</span>
+              <strong class="nac-about-val">Chrome Manifest V3 / Standards Compliant</strong>
+            </div>
+            <div class="nac-about-item">
+              <span class="nac-about-label">Author & Maintainer</span>
+              <strong class="nac-about-val">Suchit Chavhan</strong>
+            </div>
+            <div class="nac-about-item">
+              <span class="nac-about-label">License</span>
+              <strong class="nac-about-val">MIT Open Source License</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="nac-card">
+          <h3>Core Technical Pillars</h3>
+          <div class="nac-features-list">
+            <div class="nac-feat-item">
+              <h4>🎙️ Continuous Audio Narration</h4>
+              <p>Duration-aware keep-alive heartbeat eliminates Chromium's 15-second speech silence bug without periodic audio stutters. Features natural sentence and paragraph pauses for human-like cadence.</p>
+            </div>
+            <div class="nac-feat-item">
+              <h4>📖 ReDoS-Protected Phonetic Dictionary</h4>
+              <p>Replaces cultivation Pinyin, fantasy names, and LitRPG stat tags before speech begins. Equipped with regex pattern boundaries and safe execution wrappers.</p>
+            </div>
+            <div class="nac-feat-item">
+              <h4>👁️ Distraction-Free Reader Mode</h4>
+              <p>Kindle-inspired reading surface with 4 high-contrast themes (Midnight, OLED Pitch Black, Cozy Sepia, Clean Daylight) and accessible typography.</p>
+            </div>
+            <div class="nac-feat-item">
+              <h4>🎧 Hardware & Lock-Screen Media Keys</h4>
+              <p>Native W3C Media Session API integration enables play/pause and paragraph navigation directly via Bluetooth headsets, earbuds, or lock-screen controls.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="nac-card">
+          <h3>Source Code & Community</h3>
+          <p class="nac-card-desc" style="margin-bottom: 16px;">
+            Novel Audio Companion is fully open-source and respects user privacy—no external tracking, no telemetry, and all settings are stored locally or synced via Chrome Sync.
+          </p>
+          <div class="nac-backup-actions">
+            <a href="https://github.com/suchitchavhan-21/NovelAudioCompanion" target="_blank" rel="noopener noreferrer" class="nac-btn nac-btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+              ⭐ View on GitHub
+            </a>
+            <a href="https://github.com/suchitchavhan-21/NovelAudioCompanion/issues" target="_blank" rel="noopener noreferrer" class="nac-btn nac-btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+              🐛 Report an Issue / Suggest Feature
+            </a>
           </div>
         </div>
       </section>
