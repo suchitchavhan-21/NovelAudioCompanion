@@ -63,9 +63,25 @@
   let voiceSelect = null;
   let speedSelect = null;
   let sleepBtn = null;
+  let autoNextBtn = null;
+  let readerAutoNextBtn = null;
   let readerOverlay = null;
   let readerArticle = null;
   let isReaderActive = false;
+
+  function updateAutoNextButtons() {
+    const isEnabled = settings.autoNext !== false;
+    if (autoNextBtn) {
+      autoNextBtn.textContent = isEnabled ? '🔄 Auto: ON' : '🔄 Auto: OFF';
+      autoNextBtn.classList.toggle('active', isEnabled);
+      autoNextBtn.title = isEnabled ? 'Auto-Next chapter is enabled (click to disable)' : 'Auto-Next chapter is disabled (click to enable)';
+    }
+    if (readerAutoNextBtn) {
+      readerAutoNextBtn.textContent = isEnabled ? '🔄 Auto: ON' : '🔄 Auto: OFF';
+      readerAutoNextBtn.classList.toggle('active', isEnabled);
+      readerAutoNextBtn.title = isEnabled ? 'Auto-Next chapter is enabled (click to disable)' : 'Auto-Next chapter is disabled (click to enable)';
+    }
+  }
 
   // --- 1. Settings Loader & Real-Time Sync ---
   async function initSettings() {
@@ -84,6 +100,10 @@
             }
             if (changes.voiceURI) {
               matchPreferredVoice();
+            }
+            if (changes.autoNext !== undefined) {
+              settings.autoNext = Boolean(changes.autoNext.newValue);
+              updateAutoNextButtons();
             }
             if (changes.readerTheme || changes.readerFont || changes.readerFontSize || changes.readerLineHeight || changes.readerMaxWidth) {
               applyReaderStyles();
@@ -807,13 +827,23 @@
     largerBtn.textContent = 'A+';
     largerBtn.title = 'Increase font size';
 
+    readerAutoNextBtn = document.createElement('button');
+    readerAutoNextBtn.id = 'nac-rm-autonext-btn';
+    readerAutoNextBtn.addEventListener('click', () => {
+      settings.autoNext = !(settings.autoNext !== false);
+      chrome.storage?.sync?.set({ autoNext: settings.autoNext });
+      updateAutoNextButtons();
+      showToast(settings.autoNext ? '🔄 Auto-Next chapter enabled' : '⏸️ Auto-Next chapter disabled');
+    });
+
     const closeBtn = document.createElement('button');
     closeBtn.className = 'nac-btn-close-reader';
     closeBtn.id = 'nac-rm-close-btn';
     closeBtn.textContent = '✕ Exit';
     closeBtn.title = 'Exit Reader Mode';
 
-    topBar.append(themeBtn, fontBtn, smallerBtn, largerBtn, closeBtn);
+    topBar.append(themeBtn, fontBtn, smallerBtn, largerBtn, readerAutoNextBtn, closeBtn);
+    updateAutoNextButtons();
 
     // Article Content
     readerArticle = document.createElement('article');
@@ -924,6 +954,7 @@
           <option value="2.0">2.0x</option>
         </select>
 
+        <button class="nac-pill-btn nac-autonext-btn" id="nac-autonext-btn" title="Toggle Auto-Next Chapter" aria-label="Toggle Auto-Next Chapter">🔄 Auto: ON</button>
         <button class="nac-pill-btn" id="nac-sleep-btn" title="Sleep Timer" aria-label="Sleep Timer">⏱️ Sleep</button>
         <button class="nac-pill-btn" id="nac-reader-btn" title="Clean Reader Mode" aria-label="Toggle Clean Reader Mode">📖 Reader</button>
 
@@ -955,8 +986,17 @@
     voiceSelect = playerContainer.querySelector('#nac-voice-select');
     speedSelect = playerContainer.querySelector('#nac-speed-select');
     sleepBtn = playerContainer.querySelector('#nac-sleep-btn');
+    autoNextBtn = playerContainer.querySelector('#nac-autonext-btn');
 
     speedSelect.value = (settings.rate || 1.0).toString();
+    updateAutoNextButtons();
+
+    autoNextBtn.addEventListener('click', () => {
+      settings.autoNext = !(settings.autoNext !== false);
+      chrome.storage?.sync?.set({ autoNext: settings.autoNext });
+      updateAutoNextButtons();
+      showToast(settings.autoNext ? '🔄 Auto-Next chapter enabled' : '⏸️ Auto-Next chapter disabled');
+    });
 
     // Event Handlers
     playBtn.addEventListener('click', () => {
@@ -1187,8 +1227,9 @@
 
       if (req.action === 'SET_AUTONEXT') {
         settings.autoNext = Boolean(req.autoNext);
-        showToast(settings.autoNext ? 'Auto-Next chapter enabled' : 'Auto-Next disabled');
-        sendResponse({ success: true });
+        updateAutoNextButtons();
+        showToast(settings.autoNext ? '🔄 Auto-Next chapter enabled' : '⏸️ Auto-Next chapter disabled');
+        sendResponse({ success: true, autoNext: settings.autoNext });
         return true;
       }
 

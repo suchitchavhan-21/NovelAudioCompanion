@@ -120,11 +120,22 @@
               <input type="checkbox" id="nac-opt-highlight" checked>
               <span>Enable real-time Word / Sentence Highlighting (Karaoke tracking)</span>
             </label>
-            <label class="nac-check-label">
+          </div>
+        </div>
+
+        <div class="nac-card">
+          <h3>🔄 Continuous Chapter Handover & Auto-Next</h3>
+          <p class="nac-card-desc">Seamlessly continue speech narration across chapters without manually clicking next chapter.</p>
+          
+          <div class="nac-checkbox-group">
+            <label class="nac-check-label" style="font-weight: 600;">
               <input type="checkbox" id="nac-opt-autonext" checked>
-              <span>Auto-load and continue audio into Next Chapter automatically</span>
+              <span>Enable Auto-Change Chapter (Continuous Audiobook Narration)</span>
             </label>
           </div>
+          <p class="nac-card-desc" style="margin-top: 8px; font-size: 12px; opacity: 0.85;">
+            When enabled, Novel Audio Companion automatically scans for next-chapter links (<code>rel="next"</code>, chapter number increments, arrow buttons), navigates, and resumes reading automatically.
+          </p>
         </div>
       </section>
 

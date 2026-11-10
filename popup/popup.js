@@ -1,4 +1,5 @@
-// Novel Audio Companion - Popup Logic
+// Novel Audio Companion - Popup Logic (Universal Standards & Store Compliant)
+'use strict';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // UI Elements
@@ -19,41 +20,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnCleanDom = document.getElementById('nac-clean-dom-btn');
   const btnSettings = document.getElementById('nac-open-settings');
 
-  // Open Options page
-  btnSettings.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
+  // 1. Immediately load and apply user settings from storage regardless of tab state
+  let currentSettings = { autoNext: true, rate: 1.0 };
+  try {
+    const stored = await chrome.storage.sync.get(['autoNext', 'rate']);
+    if (stored.autoNext !== undefined) currentSettings.autoNext = stored.autoNext;
+    if (stored.rate !== undefined) currentSettings.rate = stored.rate;
+  } catch (e) {
+    console.debug('[NAC Popup] Storage read fallback:', e);
+  }
+
+  // Reflect stored Auto-Next toggle immediately
+  toggleAutoNext.checked = currentSettings.autoNext !== false;
+
+  // Reflect stored speed immediately
+  const currentRate = parseFloat(currentSettings.rate || 1.0);
+  speedChips.forEach(chip => {
+    const chipSpeed = parseFloat(chip.dataset.speed);
+    chip.classList.toggle('active', Math.abs(chipSpeed - currentRate) < 0.05);
   });
 
-  // Helper to query active tab
-  async function getActiveTab() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tab;
-  }
-
-  // Load and apply initial state from active tab
-  const tab = await getActiveTab();
-  if (!tab || !tab.id || tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
-    setNotSupportedState('Novel Audio Companion active on web novel sites.');
-    return;
-  }
-
+  // 2. Query active tab safely
+  let activeTab = null;
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, { action: 'GET_STATE' });
-    if (response && response.isNovel) {
-      applyState(response);
-    } else {
-      setNotSupportedState('No chapter content detected on this tab.');
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    activeTab = tab;
+  } catch (e) {}
+
+  // 3. Connect to content script if available on active tab
+  if (activeTab && activeTab.id && activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('edge://') && !activeTab.url.startsWith('chrome-extension://')) {
+    try {
+      const response = await chrome.tabs.sendMessage(activeTab.id, { action: 'GET_STATE' });
+      if (response && response.isNovel) {
+        applyState(response);
+      } else {
+        setStandbyState('Novel content will be auto-detected on chapter pages.');
+      }
+    } catch (_) {
+      setStandbyState('Novel Companion is ready. Open a novel chapter to begin.');
     }
-  } catch (err) {
-    setNotSupportedState('Click Reader View to activate on this page.');
+  } else {
+    setStandbyState('Novel Companion is active on web novel sites.');
   }
 
   function applyState(state) {
     pulseIndicator.classList.add('active');
     statusLabel.textContent = state.isPlaying ? (state.isPaused ? 'Paused' : 'Playing') : 'Ready to read';
-    
+
     chapterTitle.textContent = state.chapterTitle || 'Chapter Detected';
-    novelMeta.textContent = state.novelTitle || tab.title || new URL(tab.url).hostname;
+    novelMeta.textContent = state.novelTitle || activeTab?.title || (activeTab?.url ? new URL(activeTab.url).hostname : 'Web Novel');
 
     const total = state.totalParagraphs || 0;
     const current = state.currentIdx !== undefined ? state.currentIdx + 1 : 0;
@@ -62,12 +77,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressFill.style.width = `${pct}%`;
     progressText.textContent = `${current} / ${total} paragraphs (${pct}%)`;
 
-    // Estimated time calculation (~200 words per min avg)
     const remainingParas = Math.max(0, total - current);
     const estMinutes = Math.ceil((remainingParas * 35) / (200 * (state.rate || 1.0)));
     timeRemaining.textContent = remainingParas > 0 ? `~${estMinutes} min left` : 'Completed';
 
-    // Play/Pause button
     if (state.isPlaying && !state.isPaused) {
       btnPlay.textContent = '⏸';
       btnPlay.title = 'Pause (Alt+Shift+P)';
@@ -76,18 +89,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       btnPlay.title = 'Play (Alt+Shift+P)';
     }
 
-    // Speed chips
-    const currentRate = parseFloat(state.rate || 1.0);
-    speedChips.forEach(chip => {
-      const chipSpeed = parseFloat(chip.dataset.speed);
-      chip.classList.toggle('active', Math.abs(chipSpeed - currentRate) < 0.05);
-    });
-
-    // Auto-Next toggle
-    toggleAutoNext.checked = !!state.autoNext;
+    if (state.autoNext !== undefined) {
+      toggleAutoNext.checked = Boolean(state.autoNext);
+    }
   }
 
-  function setNotSupportedState(msg) {
+  function setStandbyState(msg) {
     pulseIndicator.classList.remove('active');
     statusLabel.textContent = 'Standby';
     chapterTitle.textContent = 'Novel Audio Companion';
@@ -97,28 +104,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     timeRemaining.textContent = '--';
   }
 
-  // --- Controls Handlers ---
-  btnPlay.addEventListener('click', async () => {
-    try {
-      const resp = await chrome.tabs.sendMessage(tab.id, { action: 'CMD_TOGGLE_PLAY' });
-      if (resp) applyState(resp);
-    } catch (e) {
-      console.warn('Could not toggle play:', e);
+  // --- Controls Handlers (Always Attached Unconditionally) ---
+  btnSettings.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
+
+  toggleAutoNext.addEventListener('change', async (e) => {
+    const autoNext = e.target.checked;
+    await chrome.storage.sync.set({ autoNext });
+    if (activeTab?.id) {
+      try {
+        await chrome.tabs.sendMessage(activeTab.id, { action: 'SET_AUTONEXT', autoNext });
+      } catch (_) {}
     }
-  });
-
-  btnPrev.addEventListener('click', async () => {
-    try {
-      const resp = await chrome.tabs.sendMessage(tab.id, { action: 'CMD_PREV_PARAGRAPH' });
-      if (resp) applyState(resp);
-    } catch (e) {}
-  });
-
-  btnNext.addEventListener('click', async () => {
-    try {
-      const resp = await chrome.tabs.sendMessage(tab.id, { action: 'CMD_NEXT_PARAGRAPH' });
-      if (resp) applyState(resp);
-    } catch (e) {}
   });
 
   speedChips.forEach(chip => {
@@ -128,32 +126,52 @@ document.addEventListener('DOMContentLoaded', async () => {
       chip.classList.add('active');
 
       await chrome.storage.sync.set({ rate: speed });
-      try {
-        await chrome.tabs.sendMessage(tab.id, { action: 'SET_SPEED', speed });
-      } catch (e) {}
+      if (activeTab?.id) {
+        try {
+          await chrome.tabs.sendMessage(activeTab.id, { action: 'SET_SPEED', speed });
+        } catch (_) {}
+      }
     });
   });
 
-  toggleAutoNext.addEventListener('change', async (e) => {
-    const autoNext = e.target.checked;
-    await chrome.storage.sync.set({ autoNext });
+  btnPlay.addEventListener('click', async () => {
+    if (!activeTab?.id) return;
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'SET_AUTONEXT', autoNext });
-    } catch (e) {}
+      const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'CMD_TOGGLE_PLAY' });
+      if (resp) applyState(resp);
+    } catch (_) {}
+  });
+
+  btnPrev.addEventListener('click', async () => {
+    if (!activeTab?.id) return;
+    try {
+      const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'CMD_PREV_PARAGRAPH' });
+      if (resp) applyState(resp);
+    } catch (_) {}
+  });
+
+  btnNext.addEventListener('click', async () => {
+    if (!activeTab?.id) return;
+    try {
+      const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'CMD_NEXT_PARAGRAPH' });
+      if (resp) applyState(resp);
+    } catch (_) {}
   });
 
   btnToggleReader.addEventListener('click', async () => {
+    if (!activeTab?.id) return;
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'TOGGLE_READER_MODE' });
+      await chrome.tabs.sendMessage(activeTab.id, { action: 'TOGGLE_READER_MODE' });
       window.close();
-    } catch (e) {}
+    } catch (_) {}
   });
 
   btnCleanDom.addEventListener('click', async () => {
+    if (!activeTab?.id) return;
     try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'CLEAN_DOM_NOW' });
+      await chrome.tabs.sendMessage(activeTab.id, { action: 'CLEAN_DOM_NOW' });
       btnCleanDom.textContent = '✓ Cleaned!';
       setTimeout(() => { btnCleanDom.textContent = 'Clean'; }, 1500);
-    } catch (e) {}
+    } catch (_) {}
   });
 });

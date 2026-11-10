@@ -441,6 +441,7 @@
           <option value="1.5">1.5x</option>
           <option value="2.0">2.0x</option>
         </select>
+        <button class="nac-pill-btn nac-autonext-btn" id="nac-autonext-btn" title="Toggle Auto-Next Chapter">🔄 Auto: ON</button>
       </div>
     `;
     document.body.appendChild(playerContainer);
@@ -450,6 +451,28 @@
     progressTime = playerContainer.querySelector('#nac-progress-time');
     const voiceSelect = playerContainer.querySelector('#nac-voice-select');
     const speedSelect = playerContainer.querySelector('#nac-speed-select');
+    const autoNextBtn = playerContainer.querySelector('#nac-autonext-btn');
+
+    function updateAutoNextBtn() {
+      if (autoNext) {
+        autoNextBtn.textContent = '🔄 Auto: ON';
+        autoNextBtn.style.background = 'rgba(37, 99, 235, 0.3)';
+        autoNextBtn.style.color = '#bfdbfe';
+        autoNextBtn.style.borderColor = '#3b82f6';
+      } else {
+        autoNextBtn.textContent = '🔄 Auto: OFF';
+        autoNextBtn.style.background = 'rgba(255, 255, 255, 0.06)';
+        autoNextBtn.style.color = '#cbd5e1';
+        autoNextBtn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+      }
+    }
+    updateAutoNextBtn();
+
+    autoNextBtn.onclick = () => {
+      autoNext = !autoNext;
+      updateAutoNextBtn();
+      showToast(autoNext ? '🔄 Auto-Next chapter enabled' : '⏸️ Auto-Next chapter disabled');
+    };
 
     playBtn.onclick = () => {
       if (!isPlaying) playParagraph(currentIdx);
