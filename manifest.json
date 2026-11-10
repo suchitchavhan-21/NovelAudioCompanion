@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "Novel Audio Companion - Web Novel TTS & Clean Reader",
+  "short_name": "NovelAudio",
+  "version": "2.0.0",
+  "description": "Premium text-to-speech companion and distraction-free reader for web novels. Natural voices, auto-next chapter, ad killer, word highlight & dictionary.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "contextMenus"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Novel Audio Companion",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "nac_toggle_play": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Play / Pause Audio Narration"
+    },
+    "nac_next_paragraph": {
+      "suggested_key": {
+        "default": "Alt+Shift+Right"
+      },
+      "description": "Skip to Next Paragraph"
+    },
+    "nac_prev_paragraph": {
+      "suggested_key": {
+        "default": "Alt+Shift+Left"
+      },
+      "description": "Previous Paragraph"
+    },
+    "nac_reader_mode": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Toggle Distraction-Free Reader Mode"
+    }
+  }
+}

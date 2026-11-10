@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novel Audio Companion</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="nac-popup-container">
+    <!-- Header -->
+    <header class="nac-popup-header">
+      <div class="nac-brand">
+        <span class="nac-logo-icon">🎧</span>
+        <div class="nac-brand-text">
+          <h1>Novel Audio</h1>
+          <span class="nac-version-badge">v2.0 Pro</span>
+        </div>
+      </div>
+      <button id="nac-open-settings" class="nac-icon-btn" title="Open Full Options & Dictionary" aria-label="Settings">
+        ⚙️
+      </button>
+    </header>
+
+    <!-- Novel Status Banner -->
+    <section class="nac-status-card" id="nac-status-card">
+      <div class="nac-status-header">
+        <span class="nac-pulse-dot" id="nac-pulse-indicator"></span>
+        <span class="nac-status-label" id="nac-status-label">Detecting story...</span>
+      </div>
+
+      <div class="nac-chapter-info" id="nac-chapter-info">
+        <h2 class="nac-chapter-title" id="nac-chapter-title">Chapter Title</h2>
+        <p class="nac-novel-meta" id="nac-novel-meta">Domain / Story name</p>
+      </div>
+
+      <!-- Chapter Progress -->
+      <div class="nac-progress-container" id="nac-progress-container">
+        <div class="nac-progress-bar-bg">
+          <div class="nac-progress-bar-fill" id="nac-progress-fill" style="width: 0%;"></div>
+        </div>
+        <div class="nac-progress-meta">
+          <span id="nac-progress-text">0 / 0 paragraphs</span>
+          <span id="nac-time-remaining">-- min left</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Playback Controls -->
+    <section class="nac-playback-section" id="nac-playback-section">
+      <div class="nac-controls-row">
+        <button class="nac-ctrl-btn" id="nac-btn-prev" title="Previous paragraph (Alt+Shift+Left)">⏮</button>
+        <button class="nac-ctrl-btn nac-play-main" id="nac-btn-play" title="Play / Pause (Alt+Shift+P)">▶</button>
+        <button class="nac-ctrl-btn" id="nac-btn-next" title="Next paragraph (Alt+Shift+Right)">⏭</button>
+      </div>
+
+      <!-- Quick Speed Select -->
+      <div class="nac-speed-bar">
+        <span class="nac-speed-label">Speed:</span>
+        <div class="nac-speed-chips">
+          <button class="nac-chip" data-speed="0.8">0.8x</button>
+          <button class="nac-chip" data-speed="1.0">1.0x</button>
+          <button class="nac-chip" data-speed="1.25">1.25x</button>
+          <button class="nac-chip" data-speed="1.5">1.5x</button>
+          <button class="nac-chip" data-speed="2.0">2.0x</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature Quick Toggles -->
+    <section class="nac-toggles-grid">
+      <div class="nac-toggle-item">
+        <div class="nac-toggle-info">
+          <span class="nac-toggle-title">🔄 Auto-Next Chapter</span>
+          <span class="nac-toggle-desc">Continuous playback across pages</span>
+        </div>
+        <label class="nac-switch">
+          <input type="checkbox" id="nac-toggle-autonext">
+          <span class="nac-slider"></span>
+        </label>
+      </div>
+
+      <div class="nac-toggle-item">
+        <div class="nac-toggle-info">
+          <span class="nac-toggle-title">📖 Reader View</span>
+          <span class="nac-toggle-desc">Distraction-free clean canvas</span>
+        </div>
+        <button class="nac-action-pill" id="nac-toggle-reader-btn">
+          Toggle
+        </button>
+      </div>
+
+      <div class="nac-toggle-item">
+        <div class="nac-toggle-info">
+          <span class="nac-toggle-title">🛡️ Clean All Ads</span>
+          <span class="nac-toggle-desc">Purge video overlays & banners</span>
+        </div>
+        <button class="nac-action-pill nac-action-green" id="nac-clean-dom-btn">
+          Clean
+        </button>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="nac-popup-footer">
+      <div class="nac-shortcuts-hint">
+        <span>⌨️ Shortcuts: <code>Alt+Shift+P</code> Play/Pause • <code>Alt+Shift+R</code> Reader</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

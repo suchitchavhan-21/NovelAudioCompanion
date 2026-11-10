@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novel Audio Companion - Settings & Dictionary</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="nac-options-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="nac-sidebar">
+      <div class="nac-sidebar-brand">
+        <span class="nac-brand-icon">🎧</span>
+        <div class="nac-brand-title">
+          <h2>Novel Audio</h2>
+          <span class="nac-badge">Pro Companion</span>
+        </div>
+      </div>
+
+      <nav class="nac-nav-menu">
+        <button class="nac-nav-item active" data-tab="tab-speech">
+          <span class="nac-nav-icon">🎙️</span>
+          <span>Speech & Audio</span>
+        </button>
+        <button class="nac-nav-item" data-tab="tab-dictionary">
+          <span class="nac-nav-icon">📖</span>
+          <span>Pronunciation Dictionary</span>
+        </button>
+        <button class="nac-nav-item" data-tab="tab-filters">
+          <span class="nac-nav-icon">🛡️</span>
+          <span>Ad Killer & Filters</span>
+        </button>
+        <button class="nac-nav-item" data-tab="tab-reader">
+          <span class="nac-nav-icon">👁️</span>
+          <span>Reader View Styling</span>
+        </button>
+        <button class="nac-nav-item" data-tab="tab-sites">
+          <span class="nac-nav-icon">🌐</span>
+          <span>Supported Sites</span>
+        </button>
+        <button class="nac-nav-item" data-tab="tab-backup">
+          <span class="nac-nav-icon">💾</span>
+          <span>Backup & Shortcuts</span>
+        </button>
+      </nav>
+
+      <div class="nac-sidebar-footer">
+        <p>Novel Audio Companion v2.0</p>
+        <span class="nac-footer-sub">Tailored for Web Novel Readers</span>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="nac-main-content">
+      <!-- Toast Notification Container -->
+      <div id="nac-options-toast" class="nac-toast-banner" style="display: none;"></div>
+
+      <!-- Tab 1: Speech & Audio -->
+      <section class="nac-tab-panel active" id="tab-speech">
+        <div class="nac-panel-header">
+          <h2>Speech & Audio Engine</h2>
+          <p>Configure natural voices, playback pace, pitch, and reading cadence.</p>
+        </div>
+
+        <div class="nac-card">
+          <h3>Voice Selection</h3>
+          <p class="nac-card-desc">Choose from Edge Natural/Neural voices, Google Cloud voices, or installed system voices.</p>
+          
+          <div class="nac-form-group">
+            <label for="nac-voice-dropdown">Default Voice:</label>
+            <div class="nac-voice-input-row">
+              <select id="nac-voice-dropdown" class="nac-select-full"></select>
+              <button id="nac-btn-preview-voice" class="nac-btn nac-btn-secondary" title="Test selected voice">
+                🔊 Preview Voice
+              </button>
+            </div>
+          </div>
+
+          <div class="nac-form-row">
+            <div class="nac-form-col">
+              <label for="nac-rate-slider">Reading Speed: <span id="nac-rate-val" class="nac-val-badge">1.0x</span></label>
+              <input type="range" id="nac-rate-slider" min="0.5" max="3.0" step="0.05" value="1.0" class="nac-range">
+            </div>
+
+            <div class="nac-form-col">
+              <label for="nac-pitch-slider">Voice Pitch: <span id="nac-pitch-val" class="nac-val-badge">1.0</span></label>
+              <input type="range" id="nac-pitch-slider" min="0.7" max="1.3" step="0.05" value="1.0" class="nac-range">
+            </div>
+
+            <div class="nac-form-col">
+              <label for="nac-volume-slider">Volume: <span id="nac-volume-val" class="nac-val-badge">100%</span></label>
+              <input type="range" id="nac-volume-slider" min="0" max="1" step="0.05" value="1.0" class="nac-range">
+            </div>
+          </div>
+        </div>
+
+        <div class="nac-card">
+          <h3>Natural Cadence & Pauses</h3>
+          <p class="nac-card-desc">Add subtle breathing pauses between sentences and paragraphs so the narration feels like a human audiobook.</p>
+          
+          <div class="nac-form-row">
+            <div class="nac-form-col">
+              <label for="nac-sentence-pause">Sentence Pause: <span id="nac-sentence-val" class="nac-val-badge">120ms</span></label>
+              <input type="range" id="nac-sentence-pause" min="0" max="400" step="20" value="120" class="nac-range">
+            </div>
+
+            <div class="nac-form-col">
+              <label for="nac-para-pause">Paragraph Pause: <span id="nac-para-val" class="nac-val-badge">320ms</span></label>
+              <input type="range" id="nac-para-pause" min="50" max="800" step="30" value="320" class="nac-range">
+            </div>
+          </div>
+
+          <div class="nac-checkbox-group">
+            <label class="nac-check-label">
+              <input type="checkbox" id="nac-opt-highlight" checked>
+              <span>Enable real-time Word / Sentence Highlighting (Karaoke tracking)</span>
+            </label>
+            <label class="nac-check-label">
+              <input type="checkbox" id="nac-opt-autonext" checked>
+              <span>Auto-load and continue audio into Next Chapter automatically</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Pronunciation Dictionary -->
+      <section class="nac-tab-panel" id="tab-dictionary">
+        <div class="nac-panel-header">
+          <h2>Pronunciation & Phonetic Dictionary</h2>
+          <p>Fix butchered fantasy names, cultivation terms (Qi/Dao), system status screens, and Roman numerals.</p>
+        </div>
+
+        <!-- Presets Bar -->
+        <div class="nac-card nac-preset-card">
+          <div class="nac-preset-info">
+            <h3>Quick Presets</h3>
+            <p>One-click load popular dictionary rules crafted for web novel genres:</p>
+          </div>
+          <div class="nac-preset-buttons">
+            <button class="nac-btn nac-btn-preset" id="nac-load-xianxia">
+              ☯️ Xianxia / Cultivation
+            </button>
+            <button class="nac-btn nac-btn-preset" id="nac-load-litrpg">
+              ⚔️ LitRPG / System Tags
+            </button>
+            <button class="nac-btn nac-btn-preset" id="nac-load-numerals">
+              🔢 Roman Numerals
+            </button>
+          </div>
+        </div>
+
+        <!-- Add Rule Form -->
+        <div class="nac-card">
+          <h3>Add Custom Pronunciation Rule</h3>
+          <div class="nac-add-rule-form">
+            <input type="text" id="nac-rule-pattern" placeholder="Word / Text to replace (e.g. Qi, [Status])" class="nac-input">
+            <input type="text" id="nac-rule-replacement" placeholder="Pronounce as (e.g. Chee, Status:)" class="nac-input">
+            <label class="nac-check-inline" title="Treat pattern as a Regular Expression">
+              <input type="checkbox" id="nac-rule-isregex">
+              <span>Regex</span>
+            </label>
+            <button id="nac-btn-add-rule" class="nac-btn nac-btn-primary">
+              + Add Rule
+            </button>
+          </div>
+        </div>
+
+        <!-- Rules Table -->
+        <div class="nac-card">
+          <div class="nac-table-header-row">
+            <h3>Active Pronunciation Rules (<span id="nac-rule-count">0</span>)</h3>
+            <button id="nac-btn-clear-rules" class="nac-btn nac-btn-danger-outline" style="font-size: 11px;">
+              Reset to Defaults
+            </button>
+          </div>
+          <div class="nac-table-wrap">
+            <table class="nac-table" id="nac-rules-table">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">On</th>
+                  <th>Target Pattern</th>
+                  <th>Spoken Replacement</th>
+                  <th style="width: 80px;">Type</th>
+                  <th style="width: 65px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="nac-rules-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Live Pronunciation Tester -->
+        <div class="nac-card">
+          <h3>Live Pronunciation Playground</h3>
+          <p class="nac-card-desc">Type any line to hear how your dictionary rules transform and speak it:</p>
+          <div class="nac-test-box-row">
+            <input type="text" id="nac-test-phrase" value="He channeled his Qi into his Dantian. [Skill: Level Up!]" class="nac-input">
+            <button id="nac-btn-test-phrase" class="nac-btn nac-btn-secondary">
+              ▶ Listen
+            </button>
+          </div>
+          <p id="nac-test-result-preview" class="nac-preview-text"></p>
+        </div>
+      </section>
+
+      <!-- Tab 3: Ad Killer & Content Filters -->
+      <section class="nac-tab-panel" id="tab-filters">
+        <div class="nac-panel-header">
+          <h2>Ad Killer & Content Sanitization</h2>
+          <p>Strip all annoying video overlays, Ezoic banners, Humix players, and skip watermark sentences.</p>
+        </div>
+
+        <div class="nac-card">
+          <h3>Automatic Ad Destroyer</h3>
+          <p class="nac-card-desc">Aggressively removes known ad networks, floating video players, and anti-adblock traps before audio starts.</p>
+          
+          <div class="nac-checkbox-group">
+            <label class="nac-check-label">
+              <input type="checkbox" id="nac-opt-clean-ads" checked>
+              <span>Nuke Ezoic, Humix, Mediavine, Google AdSense, and dynamic iframes</span>
+            </label>
+            <label class="nac-check-label">
+              <input type="checkbox" id="nac-opt-clean-comments" checked>
+              <span>Strip Disqus / comment sections from audio detection</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="nac-card">
+          <h3>Skip Sentences & Watermarks</h3>
+          <p class="nac-card-desc">Sentences or paragraphs matching these regex patterns will be completely skipped by the TTS narrator:</p>
+          
+          <div class="nac-add-rule-form">
+            <input type="text" id="nac-filter-pattern" placeholder="Regex pattern to skip (e.g. stolen from royalroad)" class="nac-input">
+            <button id="nac-btn-add-filter" class="nac-btn nac-btn-primary">
+              + Add Skip Pattern
+            </button>
+          </div>
+
+          <div class="nac-table-wrap" style="margin-top: 14px;">
+            <table class="nac-table" id="nac-filters-table">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">On</th>
+                  <th>Regex Pattern to Skip</th>
+                  <th style="width: 65px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="nac-filters-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 4: Reader View Styling -->
+      <section class="nac-tab-panel" id="tab-reader">
+        <div class="nac-panel-header">
+          <h2>Distraction-Free Reader Mode</h2>
+          <p>Customize fonts, colors, and layout for an eye-friendly Kindle/Medium style reading experience.</p>
+        </div>
+
+        <div class="nac-card">
+          <h3>Reader Theme</h3>
+          <div class="nac-theme-grid">
+            <div class="nac-theme-option" data-theme="midnight">
+              <div class="nac-theme-swatch theme-midnight"></div>
+              <span>Midnight Slate</span>
+            </div>
+            <div class="nac-theme-option" data-theme="oled">
+              <div class="nac-theme-swatch theme-oled"></div>
+              <span>OLED Pitch Black</span>
+            </div>
+            <div class="nac-theme-option" data-theme="sepia">
+              <div class="nac-theme-swatch theme-sepia"></div>
+              <span>Cozy Sepia</span>
+            </div>
+            <div class="nac-theme-option" data-theme="light">
+              <div class="nac-theme-swatch theme-light"></div>
+              <span>Clean Daylight</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="nac-card">
+          <h3>Typography & Layout</h3>
+          <div class="nac-form-row">
+            <div class="nac-form-col">
+              <label for="nac-reader-font">Font Family:</label>
+              <select id="nac-reader-font" class="nac-select-full">
+                <option value="serif">Merriweather / Classic Book Serif</option>
+                <option value="sans">Atkinson Hyperlegible / Clean Sans</option>
+                <option value="inter">Inter / Modern Neutral</option>
+                <option value="dyslexic">OpenDyslexic (Dyslexia Friendly)</option>
+              </select>
+            </div>
+
+            <div class="nac-form-col">
+              <label for="nac-reader-size">Font Size: <span id="nac-size-val" class="nac-val-badge">19px</span></label>
+              <input type="range" id="nac-reader-size" min="14" max="28" step="1" value="19" class="nac-range">
+            </div>
+
+            <div class="nac-form-col">
+              <label for="nac-reader-lineheight">Line Spacing: <span id="nac-lineheight-val" class="nac-val-badge">1.8</span></label>
+              <input type="range" id="nac-reader-lineheight" min="1.4" max="2.4" step="0.1" value="1.8" class="nac-range">
+            </div>
+
+            <div class="nac-form-col">
+              <label for="nac-reader-width">Max Width: <span id="nac-width-val" class="nac-val-badge">760px</span></label>
+              <input type="range" id="nac-reader-width" min="600" max="1000" step="20" value="760" class="nac-range">
+            </div>
+          </div>
+
+          <!-- Live Visual Preview of Reader Mode -->
+          <div class="nac-reader-preview-box" id="nac-reader-preview">
+            <h4>Chapter 1: The First Step</h4>
+            <p>The morning mist rolled over the jagged peaks of Mount Cang, veiling the ancient stone steps in cold vapor. Lin adjusted the strap of his woven basket, feeling the subtle pulse of his core settling into rhythm.</p>
+            <p>Every journey began with an unbroken cadence. He closed his eyes, took a deep breath, and set forth upon the path.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 5: Supported Sites & Custom Rules -->
+      <section class="nac-tab-panel" id="tab-sites">
+        <div class="nac-panel-header">
+          <h2>Supported Sites & Heuristic Extractor</h2>
+          <p>Novel Audio Companion features built-in support for 30+ major web novel libraries and universal auto-detection.</p>
+        </div>
+
+        <div class="nac-card">
+          <h3>Built-in Verified Sites</h3>
+          <p class="nac-card-desc">These sites are natively optimized with dedicated content selectors and next-chapter links:</p>
+          <div class="nac-sites-badges">
+            <span class="nac-site-chip">Royal Road</span>
+            <span class="nac-site-chip">Wuxiaworld</span>
+            <span class="nac-site-chip">ScribbleHub</span>
+            <span class="nac-site-chip">LightNovelPub</span>
+            <span class="nac-site-chip">NovelFull</span>
+            <span class="nac-site-chip">IsoTLS</span>
+            <span class="nac-site-chip">Webnovel</span>
+            <span class="nac-site-chip">Ranobes</span>
+            <span class="nac-site-chip">NovelBin</span>
+            <span class="nac-site-chip">ReadLightNovel</span>
+            <span class="nac-site-chip">BoxNovel</span>
+            <span class="nac-site-chip">Mtlnovel</span>
+            <span class="nac-site-chip">FreeWebNovel</span>
+            <span class="nac-site-chip">ReaperScans</span>
+            <span class="nac-site-chip">AsuraScans</span>
+            <span class="nac-site-chip">+ Universal Auto-Extractor</span>
+          </div>
+        </div>
+
+        <div class="nac-card">
+          <h3>Add Custom Site Selector (Optional)</h3>
+          <p class="nac-card-desc">If an obscure novel site doesn't detect properly with our universal extractor, define custom selectors here:</p>
+          
+          <div class="nac-form-row">
+            <div class="nac-form-col">
+              <label>Domain:</label>
+              <input type="text" id="nac-site-domain" placeholder="example.com" class="nac-input">
+            </div>
+            <div class="nac-form-col">
+              <label>Content Selector:</label>
+              <input type="text" id="nac-site-content" placeholder=".chapter-content, #story" class="nac-input">
+            </div>
+            <div class="nac-form-col">
+              <label>Next Chapter Selector:</label>
+              <input type="text" id="nac-site-next" placeholder="a.next-chapter, a[rel='next']" class="nac-input">
+            </div>
+            <div class="nac-form-col" style="align-self: flex-end;">
+              <button id="nac-btn-add-site" class="nac-btn nac-btn-primary" style="height: 40px;">
+                + Save Site
+              </button>
+            </div>
+          </div>
+
+          <div class="nac-table-wrap" style="margin-top: 14px;">
+            <table class="nac-table">
+              <thead>
+                <tr>
+                  <th>Domain</th>
+                  <th>Content Selector</th>
+                  <th>Next Link Selector</th>
+                  <th style="width: 65px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="nac-custom-sites-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 6: Backup & Shortcuts -->
+      <section class="nac-tab-panel" id="tab-backup">
+        <div class="nac-panel-header">
+          <h2>Backup, Restore & Keyboard Shortcuts</h2>
+          <p>Export your custom pronunciation dictionary and settings or configure your keyboard shortcuts.</p>
+        </div>
+
+        <div class="nac-card">
+          <h3>Keyboard Shortcuts</h3>
+          <table class="nac-table nac-shortcuts-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Shortcut</th>
+                <th>Scope</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Play / Pause Narration</strong></td>
+                <td><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> or <kbd>Space</kbd></td>
+                <td>Global Browser / Page</td>
+              </tr>
+              <tr>
+                <td><strong>Next Paragraph</strong></td>
+                <td><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>→</kbd></td>
+                <td>Global Browser / Page</td>
+              </tr>
+              <tr>
+                <td><strong>Previous Paragraph</strong></td>
+                <td><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>←</kbd></td>
+                <td>Global Browser / Page</td>
+              </tr>
+              <tr>
+                <td><strong>Toggle Reader View</strong></td>
+                <td><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd></td>
+                <td>Current Tab</td>
+              </tr>
+              <tr>
+                <td><strong>Click to Read</strong></td>
+                <td><kbd>Click</kbd> on any novel paragraph</td>
+                <td>Current Tab</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="nac-card-desc" style="margin-top: 12px;">You can customize the Alt+Shift hotkeys in Chrome at <code>chrome://extensions/shortcuts</code>.</p>
+        </div>
+
+        <div class="nac-card">
+          <h3>Export & Import Configuration</h3>
+          <p class="nac-card-desc">Save your pronunciation dictionary rules, custom sites, and voice settings to a JSON file to transfer between devices or share with fellow novel readers.</p>
+          
+          <div class="nac-backup-actions">
+            <button id="nac-btn-export" class="nac-btn nac-btn-primary">
+              📥 Export Settings (JSON)
+            </button>
+            <label class="nac-btn nac-btn-secondary" style="cursor: pointer;">
+              📤 Import Settings (JSON)
+              <input type="file" id="nac-file-import" accept=".json" style="display: none;">
+            </label>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
