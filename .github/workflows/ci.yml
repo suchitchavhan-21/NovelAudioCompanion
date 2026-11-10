@@ -1,0 +1,65 @@
+name: Quality, Security & Store Packaging CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-test:
+    name: Lint, Audit & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify JavaScript Syntax (node -c)
+        run: npm run lint
+
+      - name: Execute Quality & Security Test Suite
+        run: npm test
+
+  package-and-distribute:
+    name: Package Extension & Release
+    needs: verify-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Package Extension (.zip)
+        run: npm run pack
+
+      - name: Upload Store Distribution Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovelAudioCompanion-Extension-Package
+          path: dist/*.zip
+          retention-days: 90
+
+      - name: Publish GitHub Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false

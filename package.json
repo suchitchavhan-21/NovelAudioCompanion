@@ -1,0 +1,28 @@
+{
+  "name": "novel-audio-companion",
+  "version": "2.0.0",
+  "description": "High-fidelity text-to-speech companion and distraction-free reader for web novels.",
+  "author": "Suchit Chavhan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/suchitchavhan-21/NovelAudioCompanion.git"
+  },
+  "keywords": [
+    "chrome-extension",
+    "edge-addon",
+    "text-to-speech",
+    "tts",
+    "web-novels",
+    "light-novels",
+    "reader-mode",
+    "phonetic-dictionary",
+    "manifest-v3"
+  ],
+  "scripts": {
+    "lint": "node -c background.js content.js popup/popup.js options/options.js novel-audio-companion.user.js",
+    "test": "node tests/test-runner.js",
+    "pack": "node tests/package-extension.js",
+    "build": "node tests/package-extension.js"
+  }
+}
