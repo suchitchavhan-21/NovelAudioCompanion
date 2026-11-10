@@ -1,18 +1,18 @@
 /* Novel Audio Companion - Options Styling */
 :root {
-  --bg-body: #0b0f19;
-  --bg-sidebar: #0f172a;
-  --bg-card: #1e293b;
+  --bg-body: #0d1117;
+  --bg-sidebar: #161b22;
+  --bg-card: #161b22;
   --border-color: rgba(255, 255, 255, 0.08);
-  --border-focus: #6366f1;
-  --accent-primary: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  --border-focus: #3b82f6;
+  --accent-primary: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.15);
+  --text-main: #f0f6fc;
+  --text-muted: #8b949e;
   --danger: #ef4444;
   --success: #10b981;
-  --radius-lg: 14px;
+  --radius-lg: 12px;
   --radius-md: 8px;
 }
 
@@ -36,7 +36,7 @@ body {
 
 /* Sidebar */
 .nac-sidebar {
-  width: 280px;
+  width: 270px;
   background-color: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
   display: flex;
@@ -49,32 +49,32 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 12px 24px 12px;
+  padding: 0 12px 20px 12px;
   border-bottom: 1px solid var(--border-color);
 }
 
 .nac-brand-icon {
-  font-size: 26px;
-  background: var(--accent-gradient);
-  padding: 8px;
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+  font-size: 22px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  padding: 6px;
+  border-radius: 10px;
 }
 
 .nac-brand-title h2 {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   color: #fff;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
 }
 
 .nac-badge {
   font-size: 11px;
-  font-weight: 600;
-  color: #a5b4fc;
-  background: rgba(99, 102, 241, 0.2);
-  padding: 2px 8px;
-  border-radius: 10px;
+  font-weight: 500;
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.15);
+  padding: 1px 7px;
+  border-radius: 8px;
   display: inline-block;
   margin-top: 2px;
 }
@@ -110,8 +110,8 @@ body {
 }
 
 .nac-nav-item.active {
-  background: rgba(99, 102, 241, 0.15);
-  color: #c7d2fe;
+  background: var(--accent-soft);
+  color: #93c5fd;
   font-weight: 600;
   border-left: 3px solid var(--accent-primary);
 }

@@ -1,24 +1,21 @@
-/* Novel Audio Companion - Production Content Styling */
+/* Novel Audio Companion - Humanized Production Styling */
 
 /* --- 1. Active Paragraph & Word Highlighting --- */
 .nac-highlight-active {
-  background: rgba(99, 102, 241, 0.16) !important;
-  border-left: 5px solid #6366f1 !important;
-  border-radius: 6px !important;
-  padding-left: 14px !important;
-  padding-top: 6px !important;
-  padding-bottom: 6px !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15) !important;
+  background: rgba(37, 99, 235, 0.12) !important;
+  border-left: 4px solid #3b82f6 !important;
+  border-radius: 4px !important;
+  padding-left: 12px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease !important;
 }
 
 .nac-word-active {
-  background: rgba(245, 158, 11, 0.35) !important;
+  background: rgba(245, 158, 11, 0.32) !important;
   color: inherit !important;
-  border-radius: 3px !important;
-  padding: 1px 3px !important;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4) !important;
-  transition: background-color 0.1s ease !important;
+  border-radius: 2px !important;
+  padding: 0 2px !important;
 }
 
 .nac-paragraph-target {
@@ -28,31 +25,7 @@
 }
 
 .nac-paragraph-target:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
-}
-
-.nac-paragraph-target:hover::after {
-  content: "🔊 Click to read from here";
-  position: absolute;
-  right: 8px;
-  top: -22px;
-  background: #312e81;
-  color: #e0e7ff;
-  font-size: 11px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 6px;
-  pointer-events: none;
-  opacity: 0.95;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  z-index: 999999;
-  animation: nac-pop-in 0.15s ease;
-}
-
-@keyframes nac-pop-in {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 0.95; transform: scale(1); }
+  background: rgba(255, 255, 255, 0.03) !important;
 }
 
 /* --- 2. Floating Island Player Bar --- */
@@ -63,7 +36,6 @@
   transform: translateX(-50%);
   z-index: 2147483640;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  box-sizing: border-box;
   user-select: none;
   touch-action: none;
 }
@@ -75,23 +47,23 @@
 .nac-island-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 44px;
-  padding: 8px 16px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.3);
-  color: #f8fafc;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 8px;
+  background: rgba(13, 17, 23, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  padding: 6px 14px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.2);
+  color: #f1f5f9;
+  transition: box-shadow 0.2s ease;
 }
 
 .nac-drag-handle {
   cursor: grab;
   padding: 0 4px;
   color: #64748b;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
 }
@@ -100,66 +72,61 @@
   cursor: grabbing;
 }
 
-/* Control Buttons */
+/* Buttons */
 .nac-btn {
   background: transparent;
   border: none;
   outline: none;
-  color: #e2e8f0;
+  color: #cbd5e1;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  font-size: 15px;
-  transition: all 0.18s ease;
+  width: 34px;
+  height: 34px;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
 }
 
 .nac-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
-  transform: scale(1.06);
+  transform: scale(1.04);
 }
 
 .nac-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .nac-btn-play {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
-  width: 44px;
-  height: 44px;
-  font-size: 19px;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
+  background: #2563eb;
+  color: #ffffff;
+  width: 38px;
+  height: 38px;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
 }
 
 .nac-btn-play:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.65);
+  background: #1d4ed8;
+  color: #ffffff;
 }
 
 .nac-btn-play.playing {
-  animation: nac-pulse-glow 2s infinite;
+  background: #059669;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4);
 }
 
-@keyframes nac-pulse-glow {
-  0% { box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45); }
-  50% { box-shadow: 0 4px 22px rgba(139, 92, 246, 0.85); }
-  100% { box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45); }
-}
-
-/* Status & Progress Info */
+/* Progress Pill */
 .nac-progress-pill {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  min-width: 90px;
+  gap: 1px;
+  padding: 3px 9px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  min-width: 80px;
   text-align: center;
 }
 
@@ -178,20 +145,19 @@
 .nac-select {
   background: #1e293b;
   color: #f1f5f9;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 4px 8px;
   font-size: 12px;
   outline: none;
   cursor: pointer;
-  max-width: 155px;
+  max-width: 140px;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: border-color 0.2s;
 }
 
 .nac-select:focus {
-  border-color: #6366f1;
+  border-color: #3b82f6;
 }
 
 .nac-select option {
@@ -199,117 +165,63 @@
   color: #f8fafc;
 }
 
-/* Feature Toggle Pills */
+/* Secondary Pills */
 .nac-pill-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #cbd5e1;
-  padding: 5px 11px;
-  border-radius: 16px;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  transition: all 0.2s ease;
+  gap: 4px;
+  transition: background 0.15s, color 0.15s;
 }
 
 .nac-pill-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 
 .nac-pill-btn.active {
-  background: rgba(99, 102, 241, 0.3);
-  border-color: #6366f1;
-  color: #c7d2fe;
+  background: rgba(37, 99, 235, 0.25);
+  border-color: #3b82f6;
+  color: #93c5fd;
 }
 
-/* Sleep Timer Badge */
-.nac-sleep-badge {
-  font-size: 11px;
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  padding: 2px 7px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* --- 3. Minimized Floating Orb & Equalizer --- */
+/* --- 3. Minimized Dock Orb --- */
 .nac-minimized-orb {
   display: none;
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 52px;
-  height: 52px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  width: 48px;
+  height: 48px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
   border-radius: 50%;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   z-index: 2147483640;
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5);
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  user-select: none;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .nac-minimized-orb:hover {
-  transform: scale(1.12);
-}
-
-.nac-orb-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 100%;
-  height: 100%;
+  transform: scale(1.08);
+  background: #2563eb;
 }
 
 .nac-orb-icon {
-  font-size: 22px;
+  font-size: 18px;
 }
 
-/* Equalizer Bars Animation */
-.nac-equalizer {
-  display: none;
-  align-items: flex-end;
-  gap: 3px;
-  height: 18px;
-}
-
-.nac-equalizer.active {
-  display: flex;
-}
-
-.nac-equalizer.active + .nac-orb-icon {
-  display: none;
-}
-
-.nac-eq-bar {
-  width: 3px;
-  background-color: #ffffff;
-  border-radius: 2px;
-  animation: nac-eq-bounce 1s ease-in-out infinite alternate;
-}
-
-.nac-eq-bar:nth-child(1) { height: 6px; animation-delay: 0.1s; }
-.nac-eq-bar:nth-child(2) { height: 16px; animation-delay: 0.3s; }
-.nac-eq-bar:nth-child(3) { height: 10px; animation-delay: 0.2s; }
-.nac-eq-bar:nth-child(4) { height: 14px; animation-delay: 0.4s; }
-
-@keyframes nac-eq-bounce {
-  0% { height: 4px; }
-  100% { height: 18px; }
-}
-
-/* --- 4. Distraction-Free "Reader Mode" Overlay Canvas --- */
+/* --- 4. Distraction-Free Reader Mode --- */
 #nac-reader-overlay {
   display: none;
   position: fixed;
@@ -317,10 +229,11 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 2147483630;
+  z-index: 2147483645;
   overflow-y: auto;
   box-sizing: border-box;
-  padding: 60px 20px 120px;
+  padding: 60px 20px 100px;
+  transition: background 0.2s, color 0.2s;
 }
 
 #nac-reader-overlay.active {
@@ -329,124 +242,156 @@
 
 .nac-reader-topbar {
   position: fixed;
-  top: 16px;
-  right: 24px;
-  z-index: 2147483635;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 30px;
-  padding: 6px 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 5px 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 2147483646;
 }
 
 .nac-reader-topbar button {
   background: transparent;
   border: none;
-  color: #e2e8f0;
-  padding: 4px 10px;
-  border-radius: 14px;
+  color: #cbd5e1;
   font-size: 12px;
   font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .nac-reader-topbar button:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
-.nac-reader-topbar .nac-btn-close-reader {
-  background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-}
-
-.nac-reader-topbar .nac-btn-close-reader:hover {
-  background: #ef4444;
-  color: #fff;
+.nac-btn-close-reader {
+  color: #f87171 !important;
+  font-weight: 600 !important;
 }
 
 .nac-reader-article {
   margin: 0 auto;
-  transition: max-width 0.2s, font-size 0.2s;
+  max-width: 760px;
+  font-size: 19px;
+  line-height: 1.8;
 }
 
-.nac-reader-article h1,
-.nac-reader-article h2 {
-  margin-bottom: 24px;
-  line-height: 1.3;
+.nac-reader-article h1 {
+  font-size: 1.8em;
+  margin-bottom: 28px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .nac-reader-article p {
   margin-bottom: 1.4em;
-  text-align: justify;
-  text-justify: inter-word;
 }
 
 /* Reader Mode Themes */
 .nac-theme-midnight {
-  background-color: #0f172a !important;
-  color: #f1f5f9 !important;
-}
-
-.nac-theme-oled {
-  background-color: #000000 !important;
+  background: #090d16 !important;
   color: #e2e8f0 !important;
 }
 
+.nac-theme-midnight .nac-reader-article h1 {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.nac-theme-oled {
+  background: #000000 !important;
+  color: #d1d5db !important;
+}
+
+.nac-theme-oled .nac-reader-article h1 {
+  border-color: #222;
+}
+
 .nac-theme-sepia {
-  background-color: #fbf0d9 !important;
-  color: #2e2417 !important;
+  background: #fbf0d9 !important;
+  color: #2c2317 !important;
+}
+
+.nac-theme-sepia .nac-reader-article h1 {
+  border-color: #d8c8ab;
+}
+
+.nac-theme-sepia .nac-reader-topbar {
+  background: rgba(245, 233, 210, 0.95);
+  border-color: #d8c8ab;
+  color: #2c2317;
+}
+
+.nac-theme-sepia .nac-reader-topbar button {
+  color: #4a3b2c;
 }
 
 .nac-theme-light {
-  background-color: #ffffff !important;
+  background: #ffffff !important;
   color: #1e293b !important;
 }
 
-/* Reader Mode Fonts */
+.nac-theme-light .nac-reader-article h1 {
+  border-color: #e2e8f0;
+}
+
+.nac-theme-light .nac-reader-topbar {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.nac-theme-light .nac-reader-topbar button {
+  color: #334155;
+}
+
+/* Fonts */
 .nac-font-serif {
-  font-family: Merriweather, Georgia, Cambria, "Times New Roman", serif !important;
+  font-family: Merriweather, Georgia, Cambria, "Times New Roman", serif;
 }
 
 .nac-font-sans {
-  font-family: Atkinson Hyperlegible, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: Atkinson Hyperlegible, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .nac-font-inter {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .nac-font-dyslexic {
-  font-family: OpenDyslexic, Comic Sans MS, cursive, sans-serif !important;
+  font-family: OpenDyslexic, Comic Sans MS, sans-serif;
 }
 
-/* --- 5. Modern Toast Notifications --- */
+/* Toast */
 .nac-toast {
   position: fixed;
-  top: 24px;
-  right: 24px;
-  background: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(16px);
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   color: #f8fafc;
-  border: 1px solid rgba(99, 102, 241, 0.4);
-  padding: 12px 20px;
-  border-radius: 12px;
   font-size: 13px;
   font-weight: 500;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 10px rgba(99, 102, 241, 0.25);
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 2147483647;
-  animation: nac-toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  animation: nac-fade-in 0.2s ease;
+  pointer-events: none;
 }
 
-@keyframes nac-toast-in {
-  from { opacity: 0; transform: translateY(-16px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes nac-fade-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }

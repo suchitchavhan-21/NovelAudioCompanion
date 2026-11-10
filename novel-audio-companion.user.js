@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Novel Audio Companion & Clean Reader Pro
-// @namespace    https://github.com/
+// @namespace    https://github.com/suchitchavhan-21/NovelAudioCompanion
 // @version      2.0.0
-// @description  Fixes Read Aloud stopping on web novels. Natural AI TTS, word tracking, ad killer, click-to-read, reader view, auto-next chapter & dictionary.
-// @author       NovelAudio Team
+// @description  Text-to-speech companion and distraction-free reader for web novels. Natural voices, ad killer, auto-next chapter & phonetic dictionary.
+// @author       Suchit Chavhan
 // @match        https://*.isotls.com/*
 // @match        https://isotls.com/*
 // @match        https://www.royalroad.com/fiction/*
@@ -21,42 +21,34 @@
   if (window.__NAC_USERSCRIPT_INITIALIZED__) return;
   window.__NAC_USERSCRIPT_INITIALIZED__ = true;
 
-  // --- Inject CSS ---
+  // Protect speech utterances from Chromium garbage collection bug
+  window.__nac_active_utterances__ = new Set();
+
+  // --- Inject Refined Humanized Styling ---
   const style = document.createElement('style');
   style.textContent = `
     .nac-highlight-active {
-      background: rgba(99, 102, 241, 0.16) !important;
-      border-left: 5px solid #6366f1 !important;
-      border-radius: 6px !important;
-      padding-left: 14px !important;
-      padding-top: 6px !important;
-      padding-bottom: 6px !important;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-      box-shadow: 0 0 20px rgba(99, 102, 241, 0.15) !important;
+      background: rgba(37, 99, 235, 0.12) !important;
+      border-left: 4px solid #3b82f6 !important;
+      border-radius: 4px !important;
+      padding-left: 12px !important;
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+      transition: background-color 0.2s ease !important;
     }
     .nac-word-active {
-      background: rgba(245, 158, 11, 0.35) !important;
-      border-radius: 3px !important;
-      padding: 1px 3px !important;
+      background: rgba(245, 158, 11, 0.32) !important;
+      color: inherit !important;
+      border-radius: 2px !important;
+      padding: 0 2px !important;
     }
     .nac-paragraph-target {
       cursor: pointer !important;
       position: relative !important;
+      transition: background-color 0.15s ease !important;
     }
-    .nac-paragraph-target:hover::after {
-      content: "🔊 Click to read from here";
-      position: absolute;
-      right: 8px;
-      top: -22px;
-      background: #312e81;
-      color: #e0e7ff;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 6px;
-      pointer-events: none;
-      opacity: 0.95;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-      z-index: 999999;
+    .nac-paragraph-target:hover {
+      background: rgba(255, 255, 255, 0.03) !important;
     }
     #nac-player-container {
       position: fixed;
@@ -66,54 +58,66 @@
       z-index: 2147483640;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       user-select: none;
+      touch-action: none;
     }
     .nac-island-card {
       display: flex;
       align-items: center;
-      gap: 10px;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 44px;
-      padding: 8px 16px;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-      color: #f8fafc;
+      gap: 8px;
+      background: rgba(13, 17, 23, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 40px;
+      padding: 6px 14px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+      color: #f1f5f9;
     }
+    .nac-drag-handle {
+      cursor: grab;
+      padding: 0 4px;
+      color: #64748b;
+      font-size: 13px;
+    }
+    .nac-drag-handle:active { cursor: grabbing; }
     .nac-btn {
       background: transparent;
       border: none;
-      color: #e2e8f0;
+      color: #cbd5e1;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      width: 36px;
-      height: 36px;
-      font-size: 15px;
-      transition: all 0.2s;
+      width: 34px;
+      height: 34px;
+      font-size: 14px;
+      transition: background 0.15s, color 0.15s, transform 0.15s;
     }
     .nac-btn:hover {
-      background: rgba(255, 255, 255, 0.14);
-      transform: scale(1.06);
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      transform: scale(1.04);
     }
+    .nac-btn:active { transform: scale(0.96); }
     .nac-btn-play {
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      background: #2563eb;
       color: white;
-      width: 44px;
-      height: 44px;
-      font-size: 19px;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
+      width: 38px;
+      height: 38px;
+      font-size: 16px;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
     }
+    .nac-btn-play:hover { background: #1d4ed8; }
+    .nac-btn-play.playing { background: #059669; }
     .nac-progress-pill {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      padding: 4px 10px;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 14px;
-      min-width: 90px;
+      gap: 1px;
+      padding: 3px 9px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      min-width: 80px;
       text-align: center;
     }
     .nac-progress-label { font-size: 11px; font-weight: 600; color: #e2e8f0; }
@@ -121,116 +125,138 @@
     .nac-select {
       background: #1e293b;
       color: #f1f5f9;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 16px;
-      padding: 5px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 4px 8px;
       font-size: 12px;
+      outline: none;
       cursor: pointer;
-      max-width: 155px;
+      max-width: 140px;
     }
     .nac-pill-btn {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       color: #cbd5e1;
-      padding: 5px 11px;
-      border-radius: 16px;
-      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 500;
       cursor: pointer;
     }
-    .nac-minimized-orb {
-      display: none;
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 52px;
-      height: 52px;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      color: white;
-      border-radius: 50%;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      z-index: 2147483640;
-      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5);
-      font-size: 22px;
-    }
+    .nac-pill-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
     .nac-toast {
       position: fixed;
-      top: 24px;
-      right: 24px;
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(16px);
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       color: #f8fafc;
-      border: 1px solid rgba(99, 102, 241, 0.4);
-      padding: 12px 20px;
-      border-radius: 12px;
       font-size: 13px;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 20px;
       z-index: 2147483647;
+      pointer-events: none;
     }
   `;
   document.head.appendChild(style);
 
-  // Settings
-  let playbackRate = parseFloat(localStorage.getItem('nac_rate') || '1.0');
-  let autoNextEnabled = localStorage.getItem('nac_autonext') !== 'false';
-  let preferredVoiceURI = localStorage.getItem('nac_voice_uri') || '';
-
-  // Container & Content
-  function findNovelContainer() {
-    const selectors = [
-      'div.content.flow-md',
-      'article.flow-lg',
-      '.chapter-inner',
-      '.chapter-content',
-      '#chp_raw',
-      '#chapter-container',
-      '#chr-content',
-      '.cha-content',
-      'div.entry-content',
-      'article'
-    ];
-    for (const sel of selectors) {
-      const el = document.querySelector(sel);
-      if (el && el.querySelectorAll('p').length >= 3) return el;
-    }
-    return null;
-  }
-
-  function sanitize(container) {
-    if (!container) return;
-    const adSelectors = [
-      'span[id^="ezoic"]', 'span[data-ez-ph-id]', 'iframe[src*="ezoic"]',
-      'iframe[src*="google"]', '.humix-player', 'ins.adsbygoogle', 'aside#comments'
-    ];
-    adSelectors.forEach(sel => {
-      container.querySelectorAll(sel).forEach(el => el.remove());
-      document.querySelectorAll(sel).forEach(el => { if (!container.contains(el)) el.remove(); });
-    });
-  }
-
+  // --- Runtime Settings ---
+  let rate = 1.0;
+  let autoNext = true;
+  let wordHighlight = true;
+  let novelContainer = null;
   let paragraphs = [];
   let currentIdx = 0;
   let isPlaying = false;
   let isPaused = false;
-  let keepAliveTimer = null;
+  let activeUtterance = null;
+  let utteranceStartTime = 0;
+  let keepAliveInterval = null;
+  let activeWordModifiedEl = null;
+  let activeWordOriginalContent = null;
   let voices = [];
   let selectedVoice = null;
 
-  function initParagraphs(container) {
-    const raw = Array.from(container.querySelectorAll('p'));
-    paragraphs = raw.filter(p => {
-      const t = p.textContent.trim();
-      return t.length > 2 && !/report\s+chapter|stolen\s+from|read\s+only\s+at/i.test(t);
-    });
+  // Dictionary rules (Clean JS regex strings)
+  const dictionaryRules = [
+    { pattern: 'Qi', replacement: 'Chee', isRegex: false },
+    { pattern: 'Dao', replacement: 'Dow', isRegex: false },
+    { pattern: 'Dantian', replacement: 'Dahn-tee-en', isRegex: false },
+    { pattern: 'Xianxia', replacement: 'Shee-ahn-shee-ah', isRegex: false },
+    { pattern: 'Wuxia', replacement: 'Woo-shee-ah', isRegex: false },
+    { pattern: '\\[(Status|Level|Stats|HP|MP|Skill|Quest)[^\\]]*\\]', replacement: 'Status window:', isRegex: true }
+  ];
 
-    paragraphs.forEach((p, idx) => {
-      p.classList.add('nac-paragraph-target');
-      p.onclick = () => playParagraph(idx);
-    });
+  function applyDictionary(text) {
+    if (!text) return '';
+    let res = text;
+    for (const rule of dictionaryRules) {
+      try {
+        if (rule.isRegex) {
+          const re = new RegExp(rule.pattern, 'gi');
+          res = res.replace(re, rule.replacement);
+        } else {
+          const escaped = rule.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const re = new RegExp(`\\b${escaped}\\b`, 'gi');
+          res = res.replace(re, rule.replacement);
+        }
+      } catch (_) {}
+    }
+    return res;
   }
 
-  function highlight(idx) {
+  function findNovelContainer() {
+    const selectors = [
+      'div.content.flow-md', 'article.flow-lg', '.chapter-inner',
+      '.chapter-content', '#chp_raw', '.chp_contents', '#chapter-container',
+      '#chr-content', '.chr-c', '.cha-content', '.chapter-entity',
+      '#arrticle', '.chapter-content3', '.reading-content', 'div.entry-content'
+    ];
+
+    for (const s of selectors) {
+      try {
+        const el = document.querySelector(s);
+        if (el && el.querySelectorAll('p').length >= 3) return el;
+      } catch (_) {}
+    }
+
+    const candidates = Array.from(document.querySelectorAll('article, main, section, div'));
+    let best = null, maxScore = 0;
+    for (const c of candidates) {
+      const pTags = c.querySelectorAll('p');
+      if (pTags.length < 3) continue;
+      const valid = Array.from(pTags).filter(p => (p.textContent || '').trim().length > 25).length;
+      if (valid > maxScore) {
+        maxScore = valid;
+        best = c;
+      }
+    }
+    return maxScore >= 3 ? best : null;
+  }
+
+  function restoreActiveWordDom() {
+    if (activeWordModifiedEl && activeWordOriginalContent !== null) {
+      activeWordModifiedEl.innerHTML = activeWordOriginalContent;
+      activeWordModifiedEl = null;
+      activeWordOriginalContent = null;
+    }
+  }
+
+  function playParagraph(idx) {
+    if (idx < 0) idx = 0;
+    if (idx >= paragraphs.length) {
+      stopPlayback();
+      if (autoNext) goToNextChapter();
+      return;
+    }
+
+    currentIdx = idx;
+    isPlaying = true;
+    isPaused = false;
+    updateUI();
+
     paragraphs.forEach((p, i) => {
       if (i === idx) {
         p.classList.add('nac-highlight-active');
@@ -239,71 +265,97 @@
         p.classList.remove('nac-highlight-active');
       }
     });
-  }
 
-  function loadVoices() {
-    voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) return;
-    voices.sort((a, b) => {
-      const aNat = a.name.includes('Natural') || a.name.includes('Online');
-      const bNat = b.name.includes('Natural') || b.name.includes('Online');
-      if (aNat && !bNat) return -1;
-      if (!aNat && bNat) return 1;
-      return a.lang.startsWith('en') ? -1 : 1;
-    });
+    window.speechSynthesis.cancel();
+    clearInterval(keepAliveInterval);
+    window.__nac_active_utterances__.clear();
+    restoreActiveWordDom();
 
-    if (preferredVoiceURI) {
-      selectedVoice = voices.find(v => v.voiceURI === preferredVoiceURI);
-    }
-    if (!selectedVoice) {
-      selectedVoice = voices.find(v => v.name.includes('Natural') && v.lang.startsWith('en')) || voices[0];
-    }
-    populateVoiceSelect();
-  }
-
-  function playParagraph(idx) {
-    if (idx < 0) idx = 0;
-    if (idx >= paragraphs.length) {
-      stopPlayback();
-      if (autoNextEnabled) goToNext();
+    const rawText = (paragraphs[currentIdx].textContent || '').trim();
+    if (!rawText) {
+      playParagraph(currentIdx + 1);
       return;
     }
 
-    currentIdx = idx;
-    isPlaying = true;
-    isPaused = false;
-    updateUI();
-    highlight(currentIdx);
+    const textToSpeak = applyDictionary(rawText);
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    activeUtterance = utterance;
+    utteranceStartTime = Date.now();
+    window.__nac_active_utterances__.add(utterance);
 
-    window.speechSynthesis.cancel();
-    clearInterval(keepAliveTimer);
+    if (selectedVoice) utterance.voice = selectedVoice;
+    utterance.rate = rate;
 
-    const text = paragraphs[currentIdx].textContent.trim();
-    if (!text) { playParagraph(idx + 1); return; }
+    // Word tracking setup
+    if (wordHighlight && paragraphs[currentIdx]) {
+      const words = textToSpeak.split(/\s+/).filter(Boolean);
+      if (words.length > 1) {
+        activeWordModifiedEl = paragraphs[currentIdx];
+        activeWordOriginalContent = paragraphs[currentIdx].innerHTML;
 
-    const utt = new SpeechSynthesisUtterance(text);
-    if (selectedVoice) utt.voice = selectedVoice;
-    utt.rate = playbackRate;
+        const frag = document.createDocumentFragment();
+        words.forEach((w, i) => {
+          const span = document.createElement('span');
+          span.className = 'nac-word';
+          span.dataset.wordIdx = i;
+          span.textContent = w + ' ';
+          frag.appendChild(span);
+        });
+        paragraphs[currentIdx].innerHTML = '';
+        paragraphs[currentIdx].appendChild(frag);
 
-    utt.onend = () => {
-      clearInterval(keepAliveTimer);
+        let activeSpan = null;
+        utterance.onboundary = (e) => {
+          if (e.name === 'word') {
+            const wordSpans = paragraphs[currentIdx].querySelectorAll('.nac-word');
+            let charAcc = 0;
+            for (let i = 0; i < words.length; i++) {
+              const len = words[i].length + 1;
+              if (e.charIndex >= charAcc && e.charIndex < charAcc + len) {
+                if (activeSpan) activeSpan.classList.remove('nac-word-active');
+                if (wordSpans[i]) {
+                  activeSpan = wordSpans[i];
+                  activeSpan.classList.add('nac-word-active');
+                }
+                break;
+              }
+              charAcc += len;
+            }
+          }
+        };
+      }
+    }
+
+    utterance.onend = () => {
+      restoreActiveWordDom();
+      window.__nac_active_utterances__.delete(utterance);
+      clearInterval(keepAliveInterval);
       if (isPlaying && !isPaused) {
-        setTimeout(() => playParagraph(currentIdx + 1), 300);
+        setTimeout(() => {
+          if (isPlaying && !isPaused) playParagraph(currentIdx + 1);
+        }, 280);
       }
     };
-    utt.onerror = () => {
-      clearInterval(keepAliveTimer);
+
+    utterance.onerror = () => {
+      restoreActiveWordDom();
+      window.__nac_active_utterances__.delete(utterance);
+      clearInterval(keepAliveInterval);
       if (isPlaying && !isPaused) playParagraph(currentIdx + 1);
     };
 
-    window.speechSynthesis.speak(utt);
+    window.speechSynthesis.speak(utterance);
 
-    keepAliveTimer = setInterval(() => {
+    // Keep-alive: only pulse if single utterance exceeds 12s
+    keepAliveInterval = setInterval(() => {
       if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
+        if (Date.now() - utteranceStartTime > 12000) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+          utteranceStartTime = Date.now();
+        }
       }
-    }, 10000);
+    }, 3000);
   }
 
   function pausePlayback() {
@@ -327,138 +379,28 @@
   function stopPlayback() {
     isPlaying = false;
     isPaused = false;
-    clearInterval(keepAliveTimer);
+    clearInterval(keepAliveInterval);
     window.speechSynthesis.cancel();
+    window.__nac_active_utterances__.clear();
+    restoreActiveWordDom();
     paragraphs.forEach(p => p.classList.remove('nac-highlight-active'));
     updateUI();
   }
 
-  function findNextLink() {
-    const all = Array.from(document.querySelectorAll('a'));
-    const arrow = all.find(a => (a.textContent.trim() === '»' || a.textContent.trim() === 'Next >') && a.href);
-    if (arrow) return arrow.href;
-    const rel = document.querySelector('a[rel="next"]');
-    if (rel && rel.href) return rel.href;
-    const textNext = all.find(a => /next\s+chapter|next/i.test(a.textContent.trim()) && a.href && a.href !== window.location.href);
-    if (textNext) return textNext.href;
-    return null;
-  }
+  function goToNextChapter() {
+    const cur = window.location.href.split('#')[0];
+    const relNext = document.querySelector('a[rel="next"], link[rel="next"]');
+    let target = (relNext && relNext.href && relNext.href.split('#')[0] !== cur) ? relNext.href : null;
 
-  function goToNext() {
-    const next = findNextLink();
-    if (next) {
-      showToast('📖 Loading next chapter...');
-      sessionStorage.setItem('nac_autoplay', 'true');
-      setTimeout(() => { window.location.href = next; }, 800);
-    } else {
-      showToast('Reached latest chapter!');
+    if (!target) {
+      const nextBtn = document.querySelector('.next-chapter a, a.next-chapter, a.next, a.btn-next');
+      if (nextBtn && nextBtn.href && nextBtn.href.split('#')[0] !== cur) target = nextBtn.href;
     }
-  }
 
-  let playerContainer, minimizedOrb, playBtn, progLabel, progTime, voiceSelect, speedSelect;
-
-  function createUI() {
-    playerContainer = document.createElement('div');
-    playerContainer.id = 'nac-player-container';
-    playerContainer.innerHTML = `
-      <div class="nac-island-card">
-        <button class="nac-btn" id="nac-prev-btn">⏮</button>
-        <button class="nac-btn nac-btn-play" id="nac-play-btn">▶</button>
-        <button class="nac-btn" id="nac-next-btn">⏭</button>
-        <div class="nac-progress-pill">
-          <span class="nac-progress-label" id="nac-prog-label">0 / ${paragraphs.length}</span>
-          <span class="nac-progress-time" id="nac-prog-time">-- min left</span>
-        </div>
-        <select class="nac-select" id="nac-voice-sel"></select>
-        <select class="nac-select" id="nac-speed-sel" style="max-width: 78px;">
-          <option value="0.75">0.75x</option>
-          <option value="1.0">1.0x</option>
-          <option value="1.2">1.2x</option>
-          <option value="1.5">1.5x</option>
-          <option value="2.0">2.0x</option>
-        </select>
-        <button class="nac-pill-btn" id="nac-clean-btn">🛡️ Clean</button>
-        <button class="nac-btn" id="nac-min-btn" style="width:28px;height:28px;font-size:12px;">—</button>
-      </div>
-    `;
-    document.body.appendChild(playerContainer);
-
-    minimizedOrb = document.createElement('div');
-    minimizedOrb.className = 'nac-minimized-orb';
-    minimizedOrb.innerHTML = '🎧';
-    document.body.appendChild(minimizedOrb);
-
-    playBtn = playerContainer.querySelector('#nac-play-btn');
-    progLabel = playerContainer.querySelector('#nac-prog-label');
-    progTime = playerContainer.querySelector('#nac-prog-time');
-    voiceSelect = playerContainer.querySelector('#nac-voice-sel');
-    speedSelect = playerContainer.querySelector('#nac-speed-sel');
-
-    speedSelect.value = playbackRate.toString();
-
-    playBtn.onclick = () => {
-      if (!isPlaying) playParagraph(currentIdx);
-      else if (isPaused) resumePlayback();
-      else pausePlayback();
-    };
-
-    playerContainer.querySelector('#nac-prev-btn').onclick = () => { if (currentIdx > 0) playParagraph(currentIdx - 1); };
-    playerContainer.querySelector('#nac-next-btn').onclick = () => { if (currentIdx < paragraphs.length - 1) playParagraph(currentIdx + 1); };
-
-    voiceSelect.onchange = (e) => {
-      selectedVoice = voices.find(v => v.voiceURI === e.target.value);
-      if (selectedVoice) localStorage.setItem('nac_voice_uri', selectedVoice.voiceURI);
-      if (isPlaying && !isPaused) playParagraph(currentIdx);
-    };
-
-    speedSelect.onchange = (e) => {
-      playbackRate = parseFloat(e.target.value);
-      localStorage.setItem('nac_rate', playbackRate.toString());
-      if (isPlaying && !isPaused) playParagraph(currentIdx);
-    };
-
-    playerContainer.querySelector('#nac-clean-btn').onclick = () => {
-      sanitize(findNovelContainer());
-      showToast('🛡️ Ads and bloat sanitized!');
-    };
-
-    playerContainer.querySelector('#nac-min-btn').onclick = () => {
-      playerContainer.style.display = 'none';
-      minimizedOrb.style.display = 'flex';
-    };
-
-    minimizedOrb.onclick = () => {
-      minimizedOrb.style.display = 'none';
-      playerContainer.style.display = 'block';
-    };
-
-    window.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-      if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
-      else if (e.altKey && e.code === 'ArrowRight') { e.preventDefault(); if (currentIdx < paragraphs.length - 1) playParagraph(currentIdx + 1); }
-      else if (e.altKey && e.code === 'ArrowLeft') { e.preventDefault(); if (currentIdx > 0) playParagraph(currentIdx - 1); }
-    });
-  }
-
-  function populateVoiceSelect() {
-    if (!voiceSelect || !voices.length) return;
-    voiceSelect.innerHTML = '';
-    voices.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.voiceURI;
-      opt.textContent = `${v.name.replace(/Microsoft | Online \(Natural\)/g, '')} (${v.lang})`;
-      if (selectedVoice && v.voiceURI === selectedVoice.voiceURI) opt.selected = true;
-      voiceSelect.appendChild(opt);
-    });
-  }
-
-  function updateUI() {
-    if (!playBtn) return;
-    playBtn.textContent = isPlaying && !isPaused ? '⏸' : '▶';
-    if (progLabel) progLabel.textContent = `${paragraphs.length > 0 ? currentIdx + 1 : 0} / ${paragraphs.length}`;
-    if (progTime) {
-      const rem = Math.max(0, paragraphs.length - (currentIdx + 1));
-      progTime.textContent = rem > 0 ? `~${Math.ceil((rem * 35) / (200 * playbackRate))}m left` : 'Done';
+    if (target && /^https?:\/\//i.test(target)) {
+      showToast('📖 Next chapter loading...');
+      sessionStorage.setItem('nac_autoplay', JSON.stringify({ origin: window.location.origin, timestamp: Date.now() }));
+      setTimeout(() => { window.location.href = target; }, 600);
     }
   }
 
@@ -469,23 +411,153 @@
     t.className = 'nac-toast';
     t.textContent = msg;
     document.body.appendChild(t);
-    setTimeout(() => t.remove(), 3200);
+    setTimeout(() => t.remove(), 3000);
   }
 
+  // --- UI Creation ---
+  let playerContainer = null;
+  let playBtn = null;
+  let progressLabel = null;
+  let progressTime = null;
+
+  function createUI() {
+    playerContainer = document.createElement('div');
+    playerContainer.id = 'nac-player-container';
+    playerContainer.innerHTML = `
+      <div class="nac-island-card">
+        <div class="nac-drag-handle" title="Drag player">⋮⋮</div>
+        <button class="nac-btn" id="nac-prev-btn" title="Previous paragraph">⏮</button>
+        <button class="nac-btn nac-btn-play" id="nac-play-btn" title="Play / Pause">▶</button>
+        <button class="nac-btn" id="nac-next-btn" title="Next paragraph">⏭</button>
+        <div class="nac-progress-pill">
+          <span class="nac-progress-label" id="nac-progress-label">0 / ${paragraphs.length}</span>
+          <span class="nac-progress-time" id="nac-progress-time">-- min</span>
+        </div>
+        <select class="nac-select" id="nac-voice-select"></select>
+        <select class="nac-select" id="nac-speed-select">
+          <option value="0.75">0.75x</option>
+          <option value="1.0" selected>1.0x</option>
+          <option value="1.2">1.2x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2.0">2.0x</option>
+        </select>
+      </div>
+    `;
+    document.body.appendChild(playerContainer);
+
+    playBtn = playerContainer.querySelector('#nac-play-btn');
+    progressLabel = playerContainer.querySelector('#nac-progress-label');
+    progressTime = playerContainer.querySelector('#nac-progress-time');
+    const voiceSelect = playerContainer.querySelector('#nac-voice-select');
+    const speedSelect = playerContainer.querySelector('#nac-speed-select');
+
+    playBtn.onclick = () => {
+      if (!isPlaying) playParagraph(currentIdx);
+      else if (isPaused) resumePlayback();
+      else pausePlayback();
+    };
+
+    playerContainer.querySelector('#nac-prev-btn').onclick = () => {
+      if (currentIdx > 0) playParagraph(currentIdx - 1);
+    };
+
+    playerContainer.querySelector('#nac-next-btn').onclick = () => {
+      if (currentIdx < paragraphs.length - 1) playParagraph(currentIdx + 1);
+      else if (autoNext) goToNextChapter();
+    };
+
+    speedSelect.onchange = (e) => {
+      rate = parseFloat(e.target.value);
+      if (isPlaying && !isPaused) playParagraph(currentIdx);
+    };
+
+    // Populate voices
+    function initVoices() {
+      voices = window.speechSynthesis.getVoices() || [];
+      voiceSelect.innerHTML = '';
+      voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.voiceURI;
+        opt.textContent = `${v.name.replace(/Microsoft | Online \(Natural\)/g, '')} (${v.lang})`;
+        voiceSelect.appendChild(opt);
+      });
+      selectedVoice = voices.find(v => /natural|neural/i.test(v.name) && v.lang.startsWith('en')) || voices[0] || null;
+      if (selectedVoice) voiceSelect.value = selectedVoice.voiceURI;
+    }
+
+    initVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = initVoices;
+
+    voiceSelect.onchange = (e) => {
+      selectedVoice = voices.find(v => v.voiceURI === e.target.value) || null;
+      if (isPlaying && !isPaused) playParagraph(currentIdx);
+    };
+
+    // Draggable
+    const handle = playerContainer.querySelector('.nac-drag-handle');
+    let dragging = false, sx = 0, sy = 0, il = 0, it = 0;
+    handle.onpointerdown = (e) => {
+      dragging = true;
+      handle.setPointerCapture(e.pointerId);
+      sx = e.clientX; sy = e.clientY;
+      const rect = playerContainer.getBoundingClientRect();
+      il = rect.left; it = rect.top;
+      playerContainer.style.transform = 'none';
+      playerContainer.style.left = `${il}px`;
+      playerContainer.style.top = `${it}px`;
+      playerContainer.style.bottom = 'auto';
+    };
+    handle.onpointermove = (e) => {
+      if (!dragging) return;
+      playerContainer.style.left = `${Math.max(10, Math.min(window.innerWidth - 300, il + e.clientX - sx))}px`;
+      playerContainer.style.top = `${Math.max(10, Math.min(window.innerHeight - 80, it + e.clientY - sy))}px`;
+    };
+    handle.onpointerup = (e) => {
+      dragging = false;
+      try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+    };
+  }
+
+  function updateUI() {
+    if (!playBtn) return;
+    playBtn.textContent = (isPlaying && !isPaused) ? '⏸' : '▶';
+    playBtn.classList.toggle('playing', isPlaying && !isPaused);
+    if (progressLabel) progressLabel.textContent = `${currentIdx + 1} / ${paragraphs.length}`;
+    if (progressTime) {
+      const left = Math.max(0, paragraphs.length - (currentIdx + 1));
+      const estMin = Math.ceil((left * 35) / (200 * rate));
+      progressTime.textContent = left > 0 ? `~${estMin}m left` : 'Finished';
+    }
+  }
+
+  // --- Initialize ---
   function init() {
-    const c = findNovelContainer();
-    if (!c) return;
-    sanitize(c);
-    initParagraphs(c);
+    novelContainer = findNovelContainer();
+    if (!novelContainer) return;
+
+    paragraphs = Array.from(novelContainer.querySelectorAll('p')).filter(p => (p.textContent || '').trim().length > 5);
+    if (!paragraphs.length) return;
+
+    paragraphs.forEach((p, idx) => {
+      p.classList.add('nac-paragraph-target');
+      p.onclick = (e) => {
+        if (window.getSelection()?.toString().length > 0) return;
+        playParagraph(idx);
+      };
+    });
+
     createUI();
-    loadVoices();
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-      speechSynthesis.onvoiceschanged = loadVoices;
-    }
-    if (sessionStorage.getItem('nac_autoplay') === 'true') {
-      sessionStorage.removeItem('nac_autoplay');
-      setTimeout(() => playParagraph(0), 1000);
-    }
+
+    try {
+      const rawHandover = sessionStorage.getItem('nac_autoplay');
+      if (rawHandover) {
+        sessionStorage.removeItem('nac_autoplay');
+        const h = JSON.parse(rawHandover);
+        if (h.origin === window.location.origin && Date.now() - h.timestamp < 30000) {
+          setTimeout(() => { playParagraph(0); }, 800);
+        }
+      }
+    } catch (_) {}
   }
 
   if (document.readyState === 'loading') {

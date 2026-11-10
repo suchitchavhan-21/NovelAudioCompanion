@@ -1,4 +1,5 @@
 // Novel Audio Companion - Options & Dictionary Controller
+'use strict';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Navigation Tabs
@@ -27,13 +28,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setTimeout(() => {
       toastBanner.style.display = 'none';
-    }, 3500);
+    }, 3200);
   }
 
-  // --- Load Stored Settings ---
-  let settings = await chrome.storage.sync.get(null);
-
-  // Fallback defaults
+  // --- Fallback Defaults ---
   const defaults = {
     rate: 1.0,
     pitch: 1.0,
@@ -42,9 +40,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     autoNext: true,
     wordHighlight: true,
     sentencePauseMs: 120,
-    paragraphPauseMs: 320,
+    paragraphPauseMs: 280,
     cleanAds: true,
-    cleanComments: true,
+    cleanComments: false,
     readerTheme: 'midnight',
     readerFont: 'serif',
     readerFontSize: 19,
@@ -58,22 +56,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       { id: '5', enabled: true, isRegex: false, pattern: 'Wuxia', replacement: 'Woo-shee-ah', category: 'xianxia' },
       { id: '6', enabled: true, isRegex: false, pattern: 'Jianghu', replacement: 'Jee-ahng-hoo', category: 'xianxia' },
       { id: '7', enabled: true, isRegex: true, pattern: '\\[(Status|Level|Stats|HP|MP|Skill|Quest)[^\\]]*\\]', replacement: 'Status window:', category: 'litrpg' },
-      { id: '8', enabled: true, isRegex: true, pattern: '(?i)^Chapter\\s+([IVXLCDM]+):?', replacement: 'Chapter $1.', category: 'formatting' },
-      { id: '9', enabled: true, isRegex: true, pattern: '(?i)(?:tl\\/n|tl:|pr:|editor:).*$', replacement: '', category: 'filters' }
+      { id: '8', enabled: true, isRegex: true, pattern: '(?:\\[|【)(?:Author\'s note|TL note|Editor\'s note)[^\\]】]*(?:\\]|】)', replacement: '', category: 'filters' },
+      { id: '9', enabled: true, isRegex: true, pattern: '(?:tl\\/n|tl:|pr:|editor:).*$', replacement: '', category: 'filters' }
     ],
     filterRules: [
-      { id: 'f1', enabled: true, pattern: '(?i)stolen\\s+from\\s+royal\\s*road', isRegex: true },
-      { id: 'f2', enabled: true, pattern: '(?i)read\\s+only\\s+at\\s+[\\w.-]+', isRegex: true },
-      { id: 'f3', enabled: true, pattern: '(?i)report\\s+chapter', isRegex: true },
+      { id: 'f1', enabled: true, pattern: 'stolen\\s+from\\s+royal\\s*road', isRegex: true },
+      { id: 'f2', enabled: true, pattern: 'read\\s+only\\s+at\\s+[\\w.-]+', isRegex: true },
+      { id: 'f3', enabled: true, pattern: 'report\\s+chapter', isRegex: true },
       { id: 'f4', enabled: true, pattern: '^[\\*\\-_=~#\\s]{3,}$', isRegex: true },
-      { id: 'f5', enabled: true, pattern: '(?i)support\\s+me\\s+on\\s+patreon', isRegex: true }
+      { id: 'f5', enabled: true, pattern: 'support\\s+(?:me\\s+)?on\\s+patreon', isRegex: true }
     ],
     customSites: []
   };
 
-  settings = { ...defaults, ...settings };
+  // --- Load Stored Settings Safely ---
+  let stored = {};
+  try {
+    stored = await chrome.storage.sync.get(null);
+  } catch (e) {
+    console.debug('Storage sync error:', e);
+  }
 
-  // --- Voice Selection & Speech Engine ---
+  let settings = { ...defaults, ...stored };
+
+  // --- Voice Selection & Speech Engine Controls ---
   const voiceSelect = document.getElementById('nac-voice-dropdown');
   const btnPreviewVoice = document.getElementById('nac-btn-preview-voice');
   const rateSlider = document.getElementById('nac-rate-slider');
@@ -94,18 +100,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   let voices = [];
 
   function loadVoices() {
-    voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) return;
+    voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) return;
 
-    // Sort voices: Natural/Online first, then English, then others
     voices.sort((a, b) => {
-      const aNat = a.name.includes('Natural') || a.name.includes('Online') || a.name.includes('Neural');
-      const bNat = b.name.includes('Natural') || b.name.includes('Online') || b.name.includes('Neural');
+      const aNat = /natural|neural|online/i.test(a.name);
+      const bNat = /natural|neural|online/i.test(b.name);
       if (aNat && !bNat) return -1;
       if (!aNat && bNat) return 1;
 
-      const aEn = a.lang.startsWith('en');
-      const bEn = b.lang.startsWith('en');
+      const aEn = (a.lang || '').startsWith('en');
+      const bEn = (b.lang || '').startsWith('en');
       if (aEn && !bEn) return -1;
       if (!aEn && bEn) return 1;
 
@@ -117,8 +122,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const opt = document.createElement('option');
       opt.value = v.voiceURI;
       let tag = '';
-      if (v.name.includes('Natural') || v.name.includes('Neural')) tag = '✨ [Natural] ';
-      else if (v.name.includes('Online') || v.name.includes('Google')) tag = '🌐 [Cloud] ';
+      if (/natural|neural/i.test(v.name)) tag = '✨ [Natural] ';
+      else if (/online|google/i.test(v.name)) tag = '🌐 [Cloud] ';
       else tag = '💻 [Local] ';
 
       const cleanName = v.name.replace(/Microsoft /g, '').replace(/ Online \(Natural\)/g, '');
@@ -135,14 +140,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     speechSynthesis.onvoiceschanged = loadVoices;
   }
 
-  // Voice dropdown change
   voiceSelect.addEventListener('change', async (e) => {
     settings.voiceURI = e.target.value;
     await chrome.storage.sync.set({ voiceURI: settings.voiceURI });
-    showToast('Default voice updated!');
+    showToast('Default voice updated');
   });
 
-  // Sliders values
   rateSlider.value = settings.rate;
   rateVal.textContent = `${parseFloat(settings.rate).toFixed(2)}x`;
   rateSlider.addEventListener('input', async (e) => {
@@ -188,21 +191,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     await chrome.storage.sync.set({ paragraphPauseMs: val });
   });
 
-  optHighlight.checked = !!settings.wordHighlight;
+  optHighlight.checked = Boolean(settings.wordHighlight);
   optHighlight.addEventListener('change', async (e) => {
     settings.wordHighlight = e.target.checked;
     await chrome.storage.sync.set({ wordHighlight: settings.wordHighlight });
     showToast(settings.wordHighlight ? 'Word tracking enabled' : 'Word tracking disabled');
   });
 
-  optAutoNext.checked = !!settings.autoNext;
+  optAutoNext.checked = Boolean(settings.autoNext);
   optAutoNext.addEventListener('change', async (e) => {
     settings.autoNext = e.target.checked;
     await chrome.storage.sync.set({ autoNext: settings.autoNext });
-    showToast(settings.autoNext ? 'Auto-Next chapter enabled' : 'Auto-Next disabled');
+    showToast(settings.autoNext ? 'Auto-Next enabled' : 'Auto-Next disabled');
   });
 
-  // Preview Voice Sample
   btnPreviewVoice.addEventListener('click', () => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance('Welcome to Novel Audio Companion. Chapter one begins now.');
@@ -214,7 +216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.speechSynthesis.speak(utterance);
   });
 
-  // --- Pronunciation Dictionary Rules ---
+  // --- Pronunciation Dictionary Rules (XSS Safe DOM Rendering) ---
   const rulesTbody = document.getElementById('nac-rules-tbody');
   const ruleCountSpan = document.getElementById('nac-rule-count');
   const inputPattern = document.getElementById('nac-rule-pattern');
@@ -225,7 +227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const btnLoadXianxia = document.getElementById('nac-load-xianxia');
   const btnLoadLitrpg = document.getElementById('nac-load-litrpg');
-  const btnLoadNumerals = document.getElementById('nac-load-numerals');
+  const btnLoadNotes = document.getElementById('nac-load-notes');
 
   const testInput = document.getElementById('nac-test-phrase');
   const testPreview = document.getElementById('nac-test-result-preview');
@@ -233,57 +235,67 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderDictionaryRules() {
     rulesTbody.innerHTML = '';
-    const rules = settings.dictionaryRules || [];
+    const rules = Array.isArray(settings.dictionaryRules) ? settings.dictionaryRules : [];
     ruleCountSpan.textContent = rules.length.toString();
 
     rules.forEach((rule, idx) => {
       const tr = document.createElement('tr');
 
-      tr.innerHTML = `
-        <td>
-          <input type="checkbox" ${rule.enabled ? 'checked' : ''} data-idx="${idx}" class="nac-rule-toggle">
-        </td>
-        <td><code>${escapeHtml(rule.pattern)}</code></td>
-        <td><strong>${escapeHtml(rule.replacement)}</strong></td>
-        <td>
-          <span class="nac-type-badge ${rule.isRegex ? 'nac-type-regex' : ''}">
-            ${rule.isRegex ? 'Regex' : 'Text'}
-          </span>
-        </td>
-        <td>
-          <button class="nac-btn-del" data-idx="${idx}" title="Delete rule">🗑️</button>
-        </td>
-      `;
-
-      rulesTbody.appendChild(tr);
-    });
-
-    // Wire toggle checkbox
-    rulesTbody.querySelectorAll('.nac-rule-toggle').forEach(chk => {
+      // Checkbox cell
+      const tdCheck = document.createElement('td');
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = Boolean(rule.enabled);
+      chk.className = 'nac-rule-toggle';
       chk.addEventListener('change', async (e) => {
-        const i = parseInt(e.target.dataset.idx, 10);
-        settings.dictionaryRules[i].enabled = e.target.checked;
+        settings.dictionaryRules[idx].enabled = e.target.checked;
         await chrome.storage.sync.set({ dictionaryRules: settings.dictionaryRules });
       });
-    });
+      tdCheck.appendChild(chk);
 
-    // Wire delete button
-    rulesTbody.querySelectorAll('.nac-btn-del').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const i = parseInt(e.target.dataset.idx, 10);
-        settings.dictionaryRules.splice(i, 1);
+      // Pattern cell
+      const tdPattern = document.createElement('td');
+      const code = document.createElement('code');
+      code.textContent = rule.pattern || '';
+      tdPattern.appendChild(code);
+
+      // Replacement cell
+      const tdRepl = document.createElement('td');
+      const strong = document.createElement('strong');
+      strong.textContent = rule.replacement || '';
+      tdRepl.appendChild(strong);
+
+      // Type badge
+      const tdType = document.createElement('td');
+      const badge = document.createElement('span');
+      badge.className = `nac-type-badge ${rule.isRegex ? 'nac-type-regex' : ''}`;
+      badge.textContent = rule.isRegex ? 'Regex' : 'Text';
+      tdType.appendChild(badge);
+
+      // Delete action
+      const tdAction = document.createElement('td');
+      const delBtn = document.createElement('button');
+      delBtn.className = 'nac-btn-del';
+      delBtn.textContent = '🗑️';
+      delBtn.title = 'Delete rule';
+      delBtn.addEventListener('click', async () => {
+        settings.dictionaryRules.splice(idx, 1);
         await chrome.storage.sync.set({ dictionaryRules: settings.dictionaryRules });
         renderDictionaryRules();
         showToast('Rule removed');
       });
+      tdAction.appendChild(delBtn);
+
+      tr.append(tdCheck, tdPattern, tdRepl, tdType, tdAction);
+      rulesTbody.appendChild(tr);
     });
   }
 
   renderDictionaryRules();
 
   btnAddRule.addEventListener('click', async () => {
-    const pattern = inputPattern.value.trim();
-    const replacement = inputReplacement.value.trim();
+    let pattern = inputPattern.value.trim().slice(0, 250);
+    const replacement = inputReplacement.value.trim().slice(0, 250);
     const isRegex = inputIsRegex.checked;
 
     if (!pattern) {
@@ -292,8 +304,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (isRegex) {
+      if (pattern.startsWith('(?i)')) {
+        pattern = pattern.slice(4).trim();
+      }
       try {
-        new RegExp(pattern);
+        new RegExp(pattern, 'gi');
       } catch (err) {
         showToast('Invalid Regular Expression: ' + err.message, true);
         return;
@@ -327,7 +342,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Preset loaders
   btnLoadXianxia.addEventListener('click', async () => {
     const xianxiaRules = [
       { id: Date.now() + '1', enabled: true, isRegex: false, pattern: 'Qi', replacement: 'Chee' },
@@ -337,7 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       { id: Date.now() + '5', enabled: true, isRegex: false, pattern: 'Wuxia', replacement: 'Woo-shee-ah' },
       { id: Date.now() + '6', enabled: true, isRegex: false, pattern: 'Jianghu', replacement: 'Jee-ahng-hoo' }
     ];
-    mergeRules(xianxiaRules, 'Xianxia rules added!');
+    mergeRules(xianxiaRules, 'Xianxia cultivation rules added!');
   });
 
   btnLoadLitrpg.addEventListener('click', async () => {
@@ -348,12 +362,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     mergeRules(litrpgRules, 'LitRPG rules added!');
   });
 
-  btnLoadNumerals.addEventListener('click', async () => {
-    const numeralRules = [
-      { id: Date.now() + 'n1', enabled: true, isRegex: true, pattern: '(?i)^Chapter\\s+([IVXLCDM]+):?', replacement: 'Chapter $1.' }
-    ];
-    mergeRules(numeralRules, 'Roman numerals rule added!');
-  });
+  if (btnLoadNotes) {
+    btnLoadNotes.addEventListener('click', async () => {
+      const noteRules = [
+        { id: Date.now() + 'n1', enabled: true, isRegex: true, pattern: '(?:\\[|【)(?:Author\'s note|TL note|Editor\'s note)[^\\]】]*(?:\\]|】)', replacement: '' },
+        { id: Date.now() + 'n2', enabled: true, isRegex: true, pattern: '(?:tl\\/n|tl:|pr:|editor:).*$', replacement: '' }
+      ];
+      mergeRules(noteRules, 'Author and translation note filters added!');
+    });
+  }
 
   async function mergeRules(newRules, successMsg) {
     newRules.forEach(nr => {
@@ -365,21 +382,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast(successMsg);
   }
 
-  // Live Pronunciation Playground
+  // Pronunciation Playground
   function applyRulesToText(text) {
     let result = text;
     const rules = settings.dictionaryRules || [];
     for (const rule of rules) {
       if (!rule.enabled || !rule.pattern) continue;
       try {
+        let pattern = rule.pattern;
+        if (pattern.startsWith('(?i)')) pattern = pattern.slice(4).trim();
         if (rule.isRegex) {
-          const re = new RegExp(rule.pattern, 'g');
+          const re = new RegExp(pattern, 'gi');
           result = result.replace(re, rule.replacement || '');
         } else {
-          // Safe word-boundary replace or substring replace
-          const escaped = rule.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const re = new RegExp(`\\b${escaped}\\b`, 'gi');
-          result = result.replace(re, rule.replacement || '');
+          result = result.replace(re, (rule.replacement || '').replace(/\$/g, '$$$$'));
         }
       } catch (e) {}
     }
@@ -414,7 +432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Ad cleaner preference saved');
   });
 
-  optCleanComments.checked = settings.cleanComments !== false;
+  optCleanComments.checked = Boolean(settings.cleanComments);
   optCleanComments.addEventListener('change', async (e) => {
     settings.cleanComments = e.target.checked;
     await chrome.storage.sync.set({ cleanComments: settings.cleanComments });
@@ -423,49 +441,54 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderFilterRules() {
     filtersTbody.innerHTML = '';
-    const filters = settings.filterRules || [];
+    const filters = Array.isArray(settings.filterRules) ? settings.filterRules : [];
 
     filters.forEach((f, idx) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>
-          <input type="checkbox" ${f.enabled ? 'checked' : ''} data-idx="${idx}" class="nac-filter-toggle">
-        </td>
-        <td><code>${escapeHtml(f.pattern)}</code></td>
-        <td>
-          <button class="nac-btn-del" data-idx="${idx}">🗑️</button>
-        </td>
-      `;
-      filtersTbody.appendChild(tr);
-    });
 
-    filtersTbody.querySelectorAll('.nac-filter-toggle').forEach(chk => {
+      const tdCheck = document.createElement('td');
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = Boolean(f.enabled);
+      chk.className = 'nac-filter-toggle';
       chk.addEventListener('change', async (e) => {
-        const i = parseInt(e.target.dataset.idx, 10);
-        settings.filterRules[i].enabled = e.target.checked;
+        settings.filterRules[idx].enabled = e.target.checked;
         await chrome.storage.sync.set({ filterRules: settings.filterRules });
       });
-    });
+      tdCheck.appendChild(chk);
 
-    filtersTbody.querySelectorAll('.nac-btn-del').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const i = parseInt(e.target.dataset.idx, 10);
-        settings.filterRules.splice(i, 1);
+      const tdPattern = document.createElement('td');
+      const code = document.createElement('code');
+      code.textContent = f.pattern || '';
+      tdPattern.appendChild(code);
+
+      const tdAction = document.createElement('td');
+      const delBtn = document.createElement('button');
+      delBtn.className = 'nac-btn-del';
+      delBtn.textContent = '🗑️';
+      delBtn.title = 'Delete filter';
+      delBtn.addEventListener('click', async () => {
+        settings.filterRules.splice(idx, 1);
         await chrome.storage.sync.set({ filterRules: settings.filterRules });
         renderFilterRules();
         showToast('Skip pattern removed');
       });
+      tdAction.appendChild(delBtn);
+
+      tr.append(tdCheck, tdPattern, tdAction);
+      filtersTbody.appendChild(tr);
     });
   }
 
   renderFilterRules();
 
   btnAddFilter.addEventListener('click', async () => {
-    const pat = inputFilterPattern.value.trim();
+    let pat = inputFilterPattern.value.trim().slice(0, 250);
     if (!pat) return;
 
+    if (pat.startsWith('(?i)')) pat = pat.slice(4).trim();
     try {
-      new RegExp(pat);
+      new RegExp(pat, 'i');
     } catch (e) {
       showToast('Invalid Regex: ' + e.message, true);
       return;
@@ -499,7 +522,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     readerPreview.style.lineHeight = settings.readerLineHeight;
     readerPreview.style.maxWidth = `${settings.readerMaxWidth}px`;
 
-    // Font
     if (settings.readerFont === 'serif') {
       readerPreview.style.fontFamily = 'Merriweather, Georgia, Cambria, serif';
     } else if (settings.readerFont === 'sans') {
@@ -510,22 +532,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       readerPreview.style.fontFamily = 'OpenDyslexic, Comic Sans MS, sans-serif';
     }
 
-    // Theme
     themeOptions.forEach(opt => {
       opt.classList.toggle('active', opt.dataset.theme === settings.readerTheme);
     });
 
     if (settings.readerTheme === 'midnight') {
-      readerPreview.style.background = '#0f172a';
-      readerPreview.style.color = '#f1f5f9';
+      readerPreview.style.background = '#090d16';
+      readerPreview.style.color = '#e2e8f0';
       readerPreview.style.borderColor = 'rgba(255,255,255,0.1)';
     } else if (settings.readerTheme === 'oled') {
       readerPreview.style.background = '#000000';
-      readerPreview.style.color = '#e2e8f0';
+      readerPreview.style.color = '#d1d5db';
       readerPreview.style.borderColor = '#222';
     } else if (settings.readerTheme === 'sepia') {
       readerPreview.style.background = '#fbf0d9';
-      readerPreview.style.color = '#2d2319';
+      readerPreview.style.color = '#2c2317';
       readerPreview.style.borderColor = '#d6c7ab';
     } else if (settings.readerTheme === 'light') {
       readerPreview.style.background = '#ffffff';
@@ -582,7 +603,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   updateReaderPreview();
 
-  // --- Custom Sites Manager ---
+  // --- Custom Sites Manager (Safe DOM Rendering) ---
   const customSitesTbody = document.getElementById('nac-custom-sites-tbody');
   const siteDomainInput = document.getElementById('nac-site-domain');
   const siteContentInput = document.getElementById('nac-site-content');
@@ -591,44 +612,72 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderCustomSites() {
     customSitesTbody.innerHTML = '';
-    const sites = settings.customSites || [];
+    const sites = Array.isArray(settings.customSites) ? settings.customSites : [];
 
     if (sites.length === 0) {
-      customSitesTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">No custom sites added. The universal extractor handles 99% of novel sites automatically!</td></tr>';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 4;
+      td.style.textAlign = 'center';
+      td.style.color = '#64748b';
+      td.textContent = 'No custom sites added. The universal extractor handles novel sites automatically.';
+      tr.appendChild(td);
+      customSitesTbody.appendChild(tr);
       return;
     }
 
     sites.forEach((s, idx) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${escapeHtml(s.domain)}</strong></td>
-        <td><code>${escapeHtml(s.contentSelector)}</code></td>
-        <td><code>${escapeHtml(s.nextSelector || '--')}</code></td>
-        <td><button class="nac-btn-del" data-idx="${idx}">🗑️</button></td>
-      `;
-      customSitesTbody.appendChild(tr);
-    });
 
-    customSitesTbody.querySelectorAll('.nac-btn-del').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const i = parseInt(e.target.dataset.idx, 10);
-        settings.customSites.splice(i, 1);
+      const tdDomain = document.createElement('td');
+      const strong = document.createElement('strong');
+      strong.textContent = s.domain || '';
+      tdDomain.appendChild(strong);
+
+      const tdContent = document.createElement('td');
+      const codeC = document.createElement('code');
+      codeC.textContent = s.contentSelector || '';
+      tdContent.appendChild(codeC);
+
+      const tdNext = document.createElement('td');
+      const codeN = document.createElement('code');
+      codeN.textContent = s.nextSelector || '--';
+      tdNext.appendChild(codeN);
+
+      const tdAction = document.createElement('td');
+      const delBtn = document.createElement('button');
+      delBtn.className = 'nac-btn-del';
+      delBtn.textContent = '🗑️';
+      delBtn.addEventListener('click', async () => {
+        settings.customSites.splice(idx, 1);
         await chrome.storage.sync.set({ customSites: settings.customSites });
         renderCustomSites();
         showToast('Custom site removed');
       });
+      tdAction.appendChild(delBtn);
+
+      tr.append(tdDomain, tdContent, tdNext, tdAction);
+      customSitesTbody.appendChild(tr);
     });
   }
 
   renderCustomSites();
 
   btnAddSite.addEventListener('click', async () => {
-    const domain = siteDomainInput.value.trim().toLowerCase();
-    const contentSelector = siteContentInput.value.trim();
-    const nextSelector = siteNextInput.value.trim();
+    const domain = siteDomainInput.value.trim().toLowerCase().slice(0, 100);
+    const contentSelector = siteContentInput.value.trim().slice(0, 200);
+    const nextSelector = siteNextInput.value.trim().slice(0, 200);
 
     if (!domain || !contentSelector) {
       showToast('Domain and content selector are required', true);
+      return;
+    }
+
+    // Verify selector validity safely
+    try {
+      document.querySelector(contentSelector);
+    } catch (e) {
+      showToast('Invalid CSS selector: ' + e.message, true);
       return;
     }
 
@@ -642,52 +691,83 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Custom site rule saved!');
   });
 
-  // --- Export & Import ---
+  // --- Export & Import (Validated JSON Security) ---
   const btnExport = document.getElementById('nac-btn-export');
   const fileImport = document.getElementById('nac-file-import');
 
   btnExport.addEventListener('click', () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(settings, null, 2));
+    const exportData = {
+      version: '2.0.0',
+      exportedAt: new Date().toISOString(),
+      settings: {
+        rate: settings.rate,
+        pitch: settings.pitch,
+        volume: settings.volume,
+        voiceURI: settings.voiceURI,
+        autoNext: settings.autoNext,
+        wordHighlight: settings.wordHighlight,
+        sentencePauseMs: settings.sentencePauseMs,
+        paragraphPauseMs: settings.paragraphPauseMs,
+        cleanAds: settings.cleanAds,
+        cleanComments: settings.cleanComments,
+        readerTheme: settings.readerTheme,
+        readerFont: settings.readerFont,
+        readerFontSize: settings.readerFontSize,
+        readerLineHeight: settings.readerLineHeight,
+        readerMaxWidth: settings.readerMaxWidth,
+        dictionaryRules: settings.dictionaryRules,
+        filterRules: settings.filterRules,
+        customSites: settings.customSites
+      }
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute('href', dataStr);
-    dlAnchor.setAttribute('download', `novel-audio-companion-settings-${new Date().toISOString().slice(0,10)}.json`);
+    dlAnchor.setAttribute('download', `novel-audio-settings-${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(dlAnchor);
     dlAnchor.click();
     dlAnchor.remove();
-    showToast('Settings exported successfully!');
+    showToast('Settings exported successfully');
   });
 
   fileImport.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (file.size > 1024 * 512) { // Max 512 KB configuration payload
+      showToast('File too large (exceeds 512 KB)', true);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const imported = JSON.parse(event.target.result);
-        if (typeof imported === 'object' && imported !== null) {
-          settings = { ...settings, ...imported };
-          await chrome.storage.sync.set(settings);
-          showToast('Settings imported successfully! Reloading...');
-          setTimeout(() => location.reload(), 1000);
-        } else {
-          showToast('Invalid settings file format', true);
+        const rawJson = JSON.parse(event.target.result);
+        const source = rawJson.settings ? rawJson.settings : rawJson;
+
+        if (typeof source !== 'object' || source === null) {
+          showToast('Invalid configuration file format', true);
+          return;
         }
+
+        // Whitelist valid schema fields only
+        const allowedKeys = Object.keys(defaults);
+        const sanitized = {};
+        for (const key of allowedKeys) {
+          if (source[key] !== undefined) {
+            sanitized[key] = source[key];
+          }
+        }
+
+        settings = { ...settings, ...sanitized };
+        await chrome.storage.sync.set(settings);
+        showToast('Settings imported successfully! Reloading...');
+        setTimeout(() => location.reload(), 800);
       } catch (err) {
-        showToast('Error reading file: ' + err.message, true);
+        showToast('Error parsing JSON file: ' + err.message, true);
       }
     };
     reader.readAsText(file);
   });
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>"']/g, m => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    })[m]);
-  }
 });

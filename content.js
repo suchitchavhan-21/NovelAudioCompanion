@@ -1,14 +1,15 @@
-// Novel Audio Companion - Production Content Engine
+// Novel Audio Companion - Production Content Engine & Reader Pro
+// Architected for high-fidelity speech synthesis, ReDoS resistance, and distraction-free reading.
 (function () {
   'use strict';
 
   if (window.__NAC_CONTENT_INITIALIZED__) return;
   window.__NAC_CONTENT_INITIALIZED__ = true;
 
-  // Global reference set to protect utterances from Chromium garbage collection
+  // Protect speech utterances from Chromium garbage collection bug
   window.__nac_active_utterances__ = new Set();
 
-  // --- Default Settings ---
+  // --- Core Configuration & Settings ---
   let settings = {
     rate: 1.0,
     pitch: 1.0,
@@ -17,9 +18,9 @@
     autoNext: true,
     wordHighlight: true,
     sentencePauseMs: 120,
-    paragraphPauseMs: 320,
+    paragraphPauseMs: 280,
     cleanAds: true,
-    cleanComments: true,
+    cleanComments: false,
     sleepTimerMinutes: 0,
     readerTheme: 'midnight',
     readerFont: 'serif',
@@ -31,7 +32,7 @@
     customSites: []
   };
 
-  // --- Speech Engine State ---
+  // --- Runtime Engine State ---
   let novelContainer = null;
   let novelTitle = '';
   let chapterTitle = '';
@@ -40,8 +41,12 @@
   let isPlaying = false;
   let isPaused = false;
   let activeUtterance = null;
-  let keepAliveTimer = null;
-  let sleepTimerId = null;
+  let utteranceStartTime = 0;
+  let keepAliveInterval = null;
+  let activeWordModifiedEl = null;
+  let activeWordOriginalContent = null;
+
+  // Sleep Timer
   let sleepSecondsRemaining = 0;
   let sleepIntervalId = null;
 
@@ -49,7 +54,20 @@
   let voices = [];
   let selectedVoice = null;
 
-  // --- 1. Load Settings from Storage & Watch for Updates ---
+  // UI References
+  let playerContainer = null;
+  let minimizedOrb = null;
+  let playBtn = null;
+  let progressLabel = null;
+  let progressTime = null;
+  let voiceSelect = null;
+  let speedSelect = null;
+  let sleepBtn = null;
+  let readerOverlay = null;
+  let readerArticle = null;
+  let isReaderActive = false;
+
+  // --- 1. Settings Loader & Real-Time Sync ---
   async function initSettings() {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
@@ -74,33 +92,124 @@
         });
       }
     } catch (e) {
-      console.warn('[NAC] Fallback to defaults or local storage:', e);
+      console.debug('[NAC] Using local defaults:', e);
     }
   }
 
-  // --- 2. Site Detection & Novel Content Extractor ---
+  // --- 2. Cybersecurity: ReDoS & Pattern Sanitization ---
+  function sanitizePattern(pattern) {
+    if (typeof pattern !== 'string') return '';
+    let p = pattern.trim();
+    // Strip illegal PCRE inline flags like (?i) that crash V8 JS RegExp
+    if (p.startsWith('(?i)')) {
+      p = p.slice(4).trim();
+    }
+    // Limit regex length to prevent catastrophic ReDoS
+    return p.slice(0, 250);
+  }
+
+  function compileRegexSafe(pattern, flags = 'gi') {
+    const clean = sanitizePattern(pattern);
+    if (!clean) return null;
+    try {
+      return new RegExp(clean, flags);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // --- 3. Pronunciation & Filter Rules Engine ---
+  function applyFilters(text) {
+    if (!text || typeof text !== 'string') return false;
+    const trimmed = text.trim();
+    if (trimmed.length < 2) return false;
+
+    // Hardcoded high-signal noise patterns
+    const defaultSkips = [
+      /stolen\s+from\s+royal\s*road/i,
+      /read\s+only\s+at\s+[\w.-]+/i,
+      /report\s+chapter/i,
+      /^[\*\-_=~#\s]{3,}$/,
+      /support\s+(?:me\s+)?on\s+patreon/i,
+      /find\s+authorized\s+novels\s+in\s+webnovel/i
+    ];
+
+    for (const re of defaultSkips) {
+      if (re.test(trimmed)) return false;
+    }
+
+    if (Array.isArray(settings.filterRules)) {
+      for (const rule of settings.filterRules) {
+        if (!rule || !rule.enabled || !rule.pattern) continue;
+        const re = compileRegexSafe(rule.pattern, 'i');
+        if (re && re.test(trimmed)) return false;
+      }
+    }
+
+    return true;
+  }
+
+  function applyDictionary(text) {
+    if (!text || typeof text !== 'string') return '';
+    let result = text;
+    const rules = Array.isArray(settings.dictionaryRules) ? settings.dictionaryRules : [];
+
+    for (const rule of rules) {
+      if (!rule || !rule.enabled || !rule.pattern) continue;
+      try {
+        if (rule.isRegex) {
+          const re = compileRegexSafe(rule.pattern, 'gi');
+          if (re) {
+            const safeReplacement = typeof rule.replacement === 'string' ? rule.replacement : '';
+            result = result.replace(re, safeReplacement);
+          }
+        } else {
+          // Exact text replacement with safe word boundaries
+          const safeEscaped = rule.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const re = new RegExp(`\\b${safeEscaped}\\b`, 'gi');
+          const safeReplacement = typeof rule.replacement === 'string' ? rule.replacement.replace(/\$/g, '$$$$') : '';
+          result = result.replace(re, safeReplacement);
+        }
+      } catch (err) {
+        // Safe continuation on any pattern evaluation failure
+      }
+    }
+
+    return result;
+  }
+
+  // --- 4. Content Extractor & Site Support ---
+  function safeQuerySelector(parent, selector) {
+    if (!parent || !selector || typeof selector !== 'string') return null;
+    try {
+      return parent.querySelector(selector.trim());
+    } catch (e) {
+      return null;
+    }
+  }
+
   function findNovelContainer() {
     const host = window.location.hostname.toLowerCase();
 
-    // 1. Check custom site rules
-    if (settings.customSites && settings.customSites.length > 0) {
+    // 1. Check custom user site definitions
+    if (Array.isArray(settings.customSites) && settings.customSites.length > 0) {
       for (const site of settings.customSites) {
-        if (site.domain && host.includes(site.domain.toLowerCase())) {
-          const el = document.querySelector(site.contentSelector);
-          if (el && el.querySelectorAll('p').length >= 2) return el;
+        if (site && site.domain && host.includes(site.domain.toLowerCase()) && site.contentSelector) {
+          const el = safeQuerySelector(document, site.contentSelector);
+          if (el && countReadableBlocks(el) >= 2) return el;
         }
       }
     }
 
-    // 2. High-precision selectors for verified sites
-    const knownSelectors = [
+    // 2. High-precision curated selectors for major web novel portals
+    const verifiedSelectors = [
       'div.content.flow-md',         // IsoTLS
       'article.flow-lg',             // IsoTLS
       '.chapter-inner',              // RoyalRoad
       '.chapter-content',            // RoyalRoad, Wuxiaworld, LightNovelPub
       '#chp_raw',                    // ScribbleHub
       '.chp_contents',               // ScribbleHub
-      '#chapter-container',          // LightNovelWorld / LightNovelPub
+      '#chapter-container',          // LightNovelPub
       '#chr-content',                // NovelFull / NovelBin
       '.chr-c',                      // NovelFull
       '.cha-content',                // Webnovel
@@ -111,186 +220,146 @@
       '.text-left',                  // BoxNovel
       '.reading-content',            // BoxNovel
       '.single-post-content',        // Mtlnovel
-      'div.entry-content',           // Generic WordPress
-      'article .content',            // Generic
+      'div.entry-content',           // WordPress Novel themes
       '#chapter-content',            // Generic
-      'article'                      // Generic fallback
+      'article .content'             // Generic
     ];
 
-    for (const sel of knownSelectors) {
-      const el = document.querySelector(sel);
-      if (el && el.querySelectorAll('p').length >= 3) {
+    for (const sel of verifiedSelectors) {
+      const el = safeQuerySelector(document, sel);
+      if (el && countReadableBlocks(el) >= 3) {
         return el;
       }
     }
 
-    // 3. Universal Heuristic Content Extractor (Readability algorithm)
-    const candidates = Array.from(document.querySelectorAll('article, main, section, div'));
+    // 3. Universal Readability-style Heuristic Fallback
+    const candidateNodes = Array.from(document.querySelectorAll('article, main, section, [role="main"], div'));
     let bestCandidate = null;
     let highestScore = 0;
 
-    for (const candidate of candidates) {
-      const pTags = candidate.querySelectorAll('p');
-      if (pTags.length < 3) continue;
-
-      let validParaCount = 0;
-      let textLength = 0;
-      pTags.forEach(p => {
-        const txt = p.textContent.trim();
-        if (txt.length > 25) {
-          validParaCount++;
-          textLength += txt.length;
-        }
-      });
-
-      if (validParaCount < 3) continue;
-
-      // Penalize elements with high link density (navigation/menus)
-      const linkCount = candidate.querySelectorAll('a').length;
-      const score = (validParaCount * 15) + (textLength / 100) - (linkCount * 8);
-
+    for (const candidate of candidateNodes) {
+      const score = scoreContentCandidate(candidate);
       if (score > highestScore) {
         highestScore = score;
         bestCandidate = candidate;
       }
     }
 
-    return bestCandidate;
+    return highestScore >= 60 ? bestCandidate : null;
   }
 
-  function extractTitles() {
-    // Novel Title
-    const ogTitle = document.querySelector('meta[property="og:title"]')?.content;
-    const h1 = document.querySelector('h1')?.textContent.trim();
-    const docTitle = document.title;
+  function countReadableBlocks(container) {
+    const pCount = container.querySelectorAll('p').length;
+    if (pCount > 0) return pCount;
+    // Fallback: count double-br or block breaks
+    const text = container.textContent || '';
+    const lines = text.split(/\n{2,}/).filter(l => l.trim().length > 20);
+    return lines.length;
+  }
 
-    if (h1 && h1.length < 90) {
+  function scoreContentCandidate(el) {
+    const pElements = el.querySelectorAll('p');
+    let validParas = 0;
+    let textLength = 0;
+
+    pElements.forEach(p => {
+      const txt = (p.textContent || '').trim();
+      if (txt.length > 25) {
+        validParas++;
+        textLength += txt.length;
+      }
+    });
+
+    if (validParas < 3) return 0;
+
+    // Heavily penalize navigation wrappers and comment blocks
+    const links = el.querySelectorAll('a').length;
+    const isNavOrFooter = /nav|menu|comment|footer|sidebar/i.test(el.className + ' ' + el.id);
+    if (isNavOrFooter) return 0;
+
+    return (validParas * 18) + (textLength / 120) - (links * 10);
+  }
+
+  function extractMetadata() {
+    const h1 = document.querySelector('h1')?.textContent.trim();
+    const ogTitle = document.querySelector('meta[property="og:title"]')?.content?.trim();
+    const docTitle = document.title || '';
+
+    if (h1 && h1.length > 2 && h1.length < 120) {
       chapterTitle = h1;
-    } else if (ogTitle && ogTitle.length < 90) {
+    } else if (ogTitle && ogTitle.length > 2 && ogTitle.length < 120) {
       chapterTitle = ogTitle;
     } else {
-      chapterTitle = docTitle.split(/[-|–]/)[0].trim();
+      chapterTitle = docTitle.split(/[-|–]/)[0].trim() || 'Novel Chapter';
     }
 
-    novelTitle = docTitle.split(/[-|–]/)[1]?.trim() || window.location.hostname;
+    novelTitle = docTitle.split(/[-|–]/)[1]?.trim() || window.location.hostname.replace(/^www\./, '');
   }
 
-  // --- 3. Dynamic Ad & Bloat Sanitizer ---
+  // --- 5. Ad & Overlay Sanitization (Safe CSS Concealment) ---
   function sanitizeNovelContent(container) {
-    if (!container) return;
+    if (!container || settings.cleanAds === false) return;
 
     const adSelectors = [
-      'span[id^="ezoic-pub-ad-placeholder"]',
+      'span[id^="ezoic-pub-ad"]',
       'span[data-ez-ph-id]',
-      'span.ezoic-adpicker-ad',
-      'span.ezoic-autoinsert-ad',
       'div.ezoic-adpicker-ad',
-      'iframe[src*="ezoic"]',
-      'iframe[src*="google"]',
-      'iframe[src*="doubleclick"]',
-      'ins.adsbygoogle',
       '.humix-player',
       '[id^="div-gpt-ad"]',
       '.mediavine-ad',
       'div[id^="mediavine"]',
-      '#disqus_thread',
-      'aside#comments',
-      '.comments-area',
-      '#comments'
+      'ins.adsbygoogle',
+      'iframe[src*="doubleclick"]',
+      'iframe[src*="googlesyndication"]',
+      'iframe[src*="ezoic"]'
     ];
 
-    adSelectors.forEach(sel => {
-      container.querySelectorAll(sel).forEach(el => el.remove());
-      document.querySelectorAll(sel).forEach(el => {
-        if (!container.contains(el)) el.remove();
-      });
-    });
-
-    // Watch for dynamically inserted ad elements
-    const observer = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        m.addedNodes.forEach(node => {
-          if (node.nodeType === 1) {
-            if (
-              node.matches?.('span[id^="ezoic"], span[data-ez-ph-id], iframe, .humix-player, ins.adsbygoogle') ||
-              node.querySelector?.('span[id^="ezoic"], iframe, ins.adsbygoogle')
-            ) {
-              node.remove();
-            }
-          }
-        });
-      }
-    });
-
-    observer.observe(container, { childList: true, subtree: true });
-  }
-
-  // --- 4. Pronunciation & Content Filter Rules Engine ---
-  function applyFilters(text) {
-    if (!text || text.length < 2) return false;
-
-    // Default skip patterns
-    const defaultSkips = [
-      /stolen\s+from\s+royal\s*road/i,
-      /read\s+only\s+at\s+[\w.-]+/i,
-      /report\s+chapter/i,
-      /^[\*\-_=~#\s]{3,}$/,
-      /support\s+(?:me\s+)?on\s+patreon/i
-    ];
-
-    for (const re of defaultSkips) {
-      if (re.test(text)) return false;
+    if (settings.cleanComments) {
+      adSelectors.push('#disqus_thread', 'aside#comments', '.comments-area', '#comments');
     }
 
-    if (settings.filterRules && settings.filterRules.length > 0) {
-      for (const rule of settings.filterRules) {
-        if (!rule.enabled || !rule.pattern) continue;
-        try {
-          const re = new RegExp(rule.pattern, 'i');
-          if (re.test(text)) return false;
-        } catch (e) {}
-      }
+    // Use safe CSS injection rather than violent DOM deletion to avoid breaking anti-adblock scripts
+    const hideSelector = adSelectors.join(', ');
+    const styleId = 'nac-ad-cleaner-style';
+    let styleTag = document.getElementById(styleId);
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = styleId;
+      document.head.appendChild(styleTag);
     }
-
-    return true;
+    styleTag.textContent = `${hideSelector} { display: none !important; visibility: hidden !important; height: 0 !important; pointer-events: none !important; }`;
   }
 
-  function applyDictionary(text) {
-    let result = text;
-    const rules = settings.dictionaryRules || [];
-
-    for (const rule of rules) {
-      if (!rule.enabled || !rule.pattern) continue;
-      try {
-        if (rule.isRegex) {
-          const re = new RegExp(rule.pattern, 'g');
-          result = result.replace(re, rule.replacement || '');
-        } else {
-          const escaped = rule.pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const re = new RegExp(`\\b${escaped}\\b`, 'gi');
-          result = result.replace(re, rule.replacement || '');
-        }
-      } catch (e) {}
-    }
-
-    return result;
-  }
-
-  // --- 5. Paragraph Indexing & Click-to-Read ---
+  // --- 6. Paragraph Indexing & Click-to-Read ---
   function initParagraphs(container) {
-    const rawP = Array.from(container.querySelectorAll('p'));
-    paragraphs = rawP.filter(p => {
-      const text = p.textContent.trim();
-      return text.length > 2 && applyFilters(text);
-    });
+    const rawParagraphs = Array.from(container.querySelectorAll('p'));
+
+    if (rawParagraphs.length >= 3) {
+      paragraphs = rawParagraphs.filter(p => {
+        const text = (p.textContent || '').trim();
+        return text.length > 2 && applyFilters(text);
+      });
+    } else {
+      // Fallback: Convert double-break text into virtual paragraph wrappers
+      const rawText = container.textContent || '';
+      const splitLines = rawText.split(/\n{2,}/).map(l => l.trim()).filter(l => l.length > 15 && applyFilters(l));
+
+      container.innerHTML = '';
+      paragraphs = splitLines.map((line, idx) => {
+        const p = document.createElement('p');
+        p.textContent = line;
+        container.appendChild(p);
+        return p;
+      });
+    }
 
     paragraphs.forEach((p, idx) => {
       p.classList.add('nac-paragraph-target');
       p.dataset.nacIndex = idx;
       p.onclick = (e) => {
-        // Prevent click if text is being selected
-        const sel = window.getSelection();
-        if (sel && sel.toString().length > 0) return;
+        // Prevent click when selecting text
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) return;
         playParagraph(idx);
       };
     });
@@ -306,7 +375,6 @@
       }
     });
 
-    // Also mirror highlight in Reader Mode if active
     if (readerArticle) {
       const readerParas = readerArticle.querySelectorAll('p');
       readerParas.forEach((p, i) => {
@@ -320,73 +388,88 @@
     }
   }
 
-  function clearHighlight() {
+  function clearActiveHighlight() {
+    restoreActiveWordDom();
     paragraphs.forEach(p => p.classList.remove('nac-highlight-active'));
     if (readerArticle) {
       readerArticle.querySelectorAll('p').forEach(p => p.classList.remove('nac-highlight-active'));
     }
   }
 
-  // --- 6. Karaoke Word Highlighting ---
-  let activeWordSpan = null;
-  function setupWordTracking(paragraphEl, textToSpeak, utterance) {
-    if (!settings.wordHighlight || !paragraphEl) return;
+  // --- 7. Non-Destructive Karaoke Word Tracking ---
+  function restoreActiveWordDom() {
+    if (activeWordModifiedEl && activeWordOriginalContent !== null) {
+      activeWordModifiedEl.innerHTML = activeWordOriginalContent;
+      activeWordModifiedEl = null;
+      activeWordOriginalContent = null;
+    }
+  }
 
-    // Tokenize paragraph into word spans non-destructively
-    const words = textToSpeak.split(/\s+/);
+  function setupWordTracking(paragraphEl, spokenText, utterance) {
+    if (!settings.wordHighlight || !paragraphEl) return;
+    restoreActiveWordDom();
+
+    // Only apply span wrapping if paragraph has pure text or simple inline nodes
+    const words = spokenText.split(/\s+/).filter(Boolean);
     if (words.length <= 1) return;
 
-    // Check if paragraph contains complex children (links/images)
-    if (paragraphEl.children.length === 0) {
-      const originalHTML = paragraphEl.innerHTML;
-      const spans = words.map((w, i) => `<span class="nac-word" data-word-idx="${i}">${escapeHtml(w)} </span>`).join('');
-      paragraphEl.innerHTML = spans;
+    // Cache original HTML safely
+    activeWordModifiedEl = paragraphEl;
+    activeWordOriginalContent = paragraphEl.innerHTML;
 
-      utterance.onboundary = (event) => {
-        if (event.name === 'word') {
-          const wordSpans = paragraphEl.querySelectorAll('.nac-word');
-          const matchedIdx = findWordIndexAtChar(textToSpeak, event.charIndex, words);
-          if (matchedIdx !== -1 && wordSpans[matchedIdx]) {
-            if (activeWordSpan) activeWordSpan.classList.remove('nac-word-active');
-            activeWordSpan = wordSpans[matchedIdx];
-            activeWordSpan.classList.add('nac-word-active');
-          }
+    // Build non-destructive spans
+    const fragment = document.createDocumentFragment();
+    words.forEach((w, i) => {
+      const span = document.createElement('span');
+      span.className = 'nac-word';
+      span.dataset.wordIdx = i;
+      span.textContent = w + ' ';
+      fragment.appendChild(span);
+    });
+
+    paragraphEl.innerHTML = '';
+    paragraphEl.appendChild(fragment);
+
+    let activeSpan = null;
+    utterance.onboundary = (event) => {
+      if (event.name === 'word') {
+        const wordSpans = paragraphEl.querySelectorAll('.nac-word');
+        const matchIdx = findWordIndexAtChar(spokenText, event.charIndex, words);
+        if (matchIdx !== -1 && wordSpans[matchIdx]) {
+          if (activeSpan) activeSpan.classList.remove('nac-word-active');
+          activeSpan = wordSpans[matchIdx];
+          activeSpan.classList.add('nac-word-active');
         }
-      };
-
-      const originalEnd = utterance.onend;
-      utterance.onend = (e) => {
-        paragraphEl.innerHTML = originalHTML;
-        if (originalEnd) originalEnd(e);
-      };
-    }
+      }
+    };
   }
 
   function findWordIndexAtChar(fullText, charIndex, wordsArray) {
     let charCount = 0;
     for (let i = 0; i < wordsArray.length; i++) {
-      if (charIndex >= charCount && charIndex < charCount + wordsArray[i].length + 1) {
+      const len = wordsArray[i].length + 1;
+      if (charIndex >= charCount && charIndex < charCount + len) {
         return i;
       }
-      charCount += wordsArray[i].length + 1;
+      charCount += len;
     }
     return -1;
   }
 
-  // --- 7. Voice Loading & Selection ---
+  // --- 8. Voice Prioritization & Matching ---
   function loadVoices() {
-    voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) return;
+    voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) return;
 
-    // Prioritize Edge Natural / Google Neural, then English
+    // Prioritize natural neural cloud voices, then English, then local
     voices.sort((a, b) => {
-      const aNat = a.name.includes('Natural') || a.name.includes('Online') || a.name.includes('Neural');
-      const bNat = b.name.includes('Natural') || b.name.includes('Online') || b.name.includes('Neural');
+      const aNat = /natural|neural|online/i.test(a.name);
+      const bNat = /natural|neural|online/i.test(b.name);
       if (aNat && !bNat) return -1;
       if (!aNat && bNat) return 1;
 
-      const aEn = a.lang.startsWith('en');
-      const bEn = b.lang.startsWith('en');
+      const aEn = (a.lang || '').startsWith('en');
+      const bEn = (b.lang || '').startsWith('en');
       if (aEn && !bEn) return -1;
       if (!aEn && bEn) return 1;
 
@@ -402,13 +485,13 @@
       selectedVoice = voices.find(v => v.voiceURI === settings.voiceURI) || null;
     }
     if (!selectedVoice) {
-      selectedVoice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Neural')) && v.lang.startsWith('en')) ||
-                      voices.find(v => v.lang.startsWith('en')) ||
-                      voices[0];
+      selectedVoice = voices.find(v => /natural|neural/i.test(v.name) && (v.lang || '').startsWith('en')) ||
+                      voices.find(v => (v.lang || '').startsWith('en')) ||
+                      voices[0] || null;
     }
   }
 
-  // --- 8. Speech Synthesis Engine with Chromium Production Fixes ---
+  // --- 9. Speech Synthesis Engine (Smooth, Freeze-Free Narration) ---
   function playParagraph(index) {
     if (index < 0) index = 0;
     if (index >= paragraphs.length) {
@@ -422,6 +505,7 @@
     currentIdx = index;
     isPlaying = true;
     isPaused = false;
+
     updateUI();
     highlightParagraph(currentIdx);
     updateMediaSession();
@@ -429,38 +513,41 @@
 
     // Clean active speech cleanly
     window.speechSynthesis.cancel();
-    clearInterval(keepAliveTimer);
+    clearInterval(keepAliveInterval);
     window.__nac_active_utterances__.clear();
 
-    const rawText = paragraphs[currentIdx].textContent.trim();
+    const rawText = (paragraphs[currentIdx].textContent || '').trim();
     if (!rawText) {
       playParagraph(currentIdx + 1);
       return;
     }
 
-    // Apply phonetic and dictionary replacements
-    const spokenText = applyDictionary(rawText);
+    // Apply custom phonetic & dictionary rules
+    const textToSpeak = applyDictionary(rawText);
 
-    const utterance = new SpeechSynthesisUtterance(spokenText);
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
     activeUtterance = utterance;
+    utteranceStartTime = Date.now();
     window.__nac_active_utterances__.add(utterance);
 
     if (selectedVoice) {
       utterance.voice = selectedVoice;
     }
-    utterance.rate = parseFloat(settings.rate || 1.0);
-    utterance.pitch = parseFloat(settings.pitch || 1.0);
-    utterance.volume = parseFloat(settings.volume !== undefined ? settings.volume : 1.0);
 
-    // Setup word highlight tracking
-    setupWordTracking(paragraphs[currentIdx], spokenText, utterance);
+    // Clamp speed and pitch to safe bounds
+    utterance.rate = Math.max(0.5, Math.min(3.0, parseFloat(settings.rate || 1.0)));
+    utterance.pitch = Math.max(0.7, Math.min(1.3, parseFloat(settings.pitch || 1.0)));
+    utterance.volume = Math.max(0, Math.min(1.0, parseFloat(settings.volume !== undefined ? settings.volume : 1.0)));
+
+    setupWordTracking(paragraphs[currentIdx], textToSpeak, utterance);
 
     utterance.onend = () => {
+      restoreActiveWordDom();
       window.__nac_active_utterances__.delete(utterance);
-      clearInterval(keepAliveTimer);
+      clearInterval(keepAliveInterval);
+
       if (isPlaying && !isPaused) {
-        // Natural paragraph breathing pause
-        const pauseDelay = parseInt(settings.paragraphPauseMs || 300, 10);
+        const pauseDelay = Math.max(50, Math.min(1000, parseInt(settings.paragraphPauseMs || 280, 10)));
         setTimeout(() => {
           if (isPlaying && !isPaused) {
             playParagraph(currentIdx + 1);
@@ -470,9 +557,9 @@
     };
 
     utterance.onerror = (e) => {
+      restoreActiveWordDom();
       window.__nac_active_utterances__.delete(utterance);
-      clearInterval(keepAliveTimer);
-      console.warn('[NAC] Speech utterance error:', e);
+      clearInterval(keepAliveInterval);
       if (isPlaying && !isPaused) {
         playParagraph(currentIdx + 1);
       }
@@ -480,13 +567,18 @@
 
     window.speechSynthesis.speak(utterance);
 
-    // Chromium 15s freeze fix: pulse pause/resume heartbeat
-    keepAliveTimer = setInterval(() => {
+    // Humanized keep-alive: ONLY pulse if a single paragraph utterance has been running past 12s
+    // to prevent Chromium 15s timeout without causing blind 10-second audio stutters!
+    keepAliveInterval = setInterval(() => {
       if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
+        const elapsed = Date.now() - utteranceStartTime;
+        if (elapsed > 12000) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+          utteranceStartTime = Date.now(); // reset timer
+        }
       }
-    }, 10000);
+    }, 3000);
   }
 
   function pausePlayback() {
@@ -514,10 +606,10 @@
   function stopPlayback() {
     isPlaying = false;
     isPaused = false;
-    clearInterval(keepAliveTimer);
+    clearInterval(keepAliveInterval);
     window.speechSynthesis.cancel();
     window.__nac_active_utterances__.clear();
-    clearHighlight();
+    clearActiveHighlight();
     updateUI();
     notifyBadge('');
   }
@@ -536,13 +628,14 @@
     }
   }
 
-  // --- 9. Hardware Media Session API ---
+  // --- 10. Hardware Media Keys & Bluetooth Controls ---
   function updateMediaSession() {
-    if ('mediaSession' in navigator) {
+    if (!('mediaSession' in navigator)) return;
+    try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: chapterTitle || 'Web Novel Chapter',
+        title: chapterTitle || 'Novel Chapter',
         artist: novelTitle || 'Novel Audio Companion',
-        album: 'Novel Audio Companion'
+        album: 'Web Novel Audio'
       });
 
       navigator.mediaSession.playbackState = isPlaying ? (isPaused ? 'paused' : 'playing') : 'none';
@@ -551,44 +644,39 @@
       navigator.mediaSession.setActionHandler('pause', () => pausePlayback());
       navigator.mediaSession.setActionHandler('previoustrack', () => prevParagraph());
       navigator.mediaSession.setActionHandler('nexttrack', () => nextParagraph());
-      navigator.mediaSession.setActionHandler('seekforward', () => {
-        playParagraph(Math.min(paragraphs.length - 1, currentIdx + 3));
-      });
-      navigator.mediaSession.setActionHandler('seekbackward', () => {
-        playParagraph(Math.max(0, currentIdx - 3));
-      });
+    } catch (e) {
+      // Some browsers have partial MediaSession support
     }
   }
 
   function notifyBadge(text) {
     try {
       if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-        chrome.runtime.sendMessage({ action: 'NAC_SET_BADGE', text, color: '#6366f1' });
+        chrome.runtime.sendMessage({ action: 'NAC_SET_BADGE', text, color: '#3b82f6' });
       }
     } catch (e) {}
   }
 
-  // --- 10. Sleep Timer ---
+  // --- 11. Sleep Timer (With 30-Second Gentle Fade Out) ---
   function setSleepTimer(minutes) {
     clearInterval(sleepIntervalId);
-    clearTimeout(sleepTimerId);
 
     if (minutes <= 0) {
       sleepSecondsRemaining = 0;
-      updateSleepBadge(0);
-      showToast('Sleep timer disabled');
+      updateSleepButton();
+      showToast('Sleep timer turned off');
       return;
     }
 
     sleepSecondsRemaining = minutes * 60;
-    updateSleepBadge(sleepSecondsRemaining);
-    showToast(`Sleep timer set for ${minutes} minutes`);
+    updateSleepButton();
+    showToast(`Sleep timer set for ${minutes} min`);
 
     sleepIntervalId = setInterval(() => {
       sleepSecondsRemaining--;
-      updateSleepBadge(sleepSecondsRemaining);
+      updateSleepButton();
 
-      // In the final 30 seconds, smoothly fade volume to zero
+      // Smoothly ramp down volume during the final 30 seconds
       if (sleepSecondsRemaining <= 30 && sleepSecondsRemaining > 0) {
         if (activeUtterance) {
           activeUtterance.volume = Math.max(0, sleepSecondsRemaining / 30);
@@ -598,60 +686,75 @@
       if (sleepSecondsRemaining <= 0) {
         clearInterval(sleepIntervalId);
         stopPlayback();
-        showToast('💤 Sleep timer reached. Audio stopped.');
+        showToast('💤 Sleep timer completed');
       }
     }, 1000);
   }
 
-  function updateSleepBadge(seconds) {
-    const sleepBtn = playerContainer?.querySelector('#nac-sleep-btn');
+  function updateSleepButton() {
     if (!sleepBtn) return;
-
-    if (seconds <= 0) {
-      sleepBtn.innerHTML = '⏱️ Sleep';
+    if (sleepSecondsRemaining <= 0) {
+      sleepBtn.textContent = '⏱️ Sleep';
       sleepBtn.classList.remove('active');
     } else {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      sleepBtn.innerHTML = `⏳ ${m}:${s < 10 ? '0' : ''}${s}`;
+      const m = Math.floor(sleepSecondsRemaining / 60);
+      const s = sleepSecondsRemaining % 60;
+      sleepBtn.textContent = `⏳ ${m}:${s < 10 ? '0' : ''}${s}`;
       sleepBtn.classList.add('active');
     }
   }
 
-  // --- 11. Next Chapter Discovery ---
+  // --- 12. Next Chapter Handover (Strict URL Validation) ---
+  function isValidHttpUrl(string) {
+    try {
+      const url = new URL(string, window.location.origin);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
+  }
+
   function findNextChapterLink() {
+    const currentHref = window.location.href.split('#')[0];
     const allLinks = Array.from(document.querySelectorAll('a'));
 
     // 1. rel="next"
     const relNext = document.querySelector('a[rel="next"], link[rel="next"]');
-    if (relNext && relNext.href) return relNext.href;
+    if (relNext && isValidHttpUrl(relNext.href) && relNext.href.split('#')[0] !== currentHref) {
+      return relNext.href;
+    }
 
-    // 2. Verified arrow '»' or '›'
-    const arrowLink = allLinks.find(a => {
-      const t = a.textContent.trim();
-      return (t === '»' || t === '›' || t === 'Next »' || t === 'Next >') && a.href && a.href !== window.location.href;
-    });
-    if (arrowLink) return arrowLink.href;
-
-    // 3. Class patterns
+    // 2. Class patterns
     const classNext = document.querySelector('.nav-next a, .next-chapter a, a.next-chapter, a.next, a.btn-next, .btn-next a');
-    if (classNext && classNext.href) return classNext.href;
+    if (classNext && isValidHttpUrl(classNext.href) && classNext.href.split('#')[0] !== currentHref) {
+      return classNext.href;
+    }
 
-    // 4. URL number increment: /chapter/12 -> /chapter/13
-    const match = window.location.pathname.match(/\/chapter[_-]?(\d+)/i);
-    if (match) {
-      const currentNum = parseInt(match[1], 10);
-      const nextNum = currentNum + 1;
-      const numLink = allLinks.find(a => a.href && a.href.includes(`/chapter/${nextNum}`) || a.href.includes(`/chapter-${nextNum}`));
+    // 3. Arrow / Symbol links: '»', '›', 'Next →'
+    const symbolLink = allLinks.find(a => {
+      const t = (a.textContent || '').trim();
+      return (t === '»' || t === '›' || t === 'Next »' || t === 'Next >' || t === 'Next →') &&
+             isValidHttpUrl(a.href) && a.href.split('#')[0] !== currentHref;
+    });
+    if (symbolLink) return symbolLink.href;
+
+    // 4. URL increment pattern: /chapter-12 -> /chapter-13
+    const urlMatch = window.location.pathname.match(/\/chapter[_-]?(\d+)/i);
+    if (urlMatch) {
+      const nextNum = parseInt(urlMatch[1], 10) + 1;
+      const numLink = allLinks.find(a => isValidHttpUrl(a.href) &&
+        (a.href.includes(`/chapter/${nextNum}`) || a.href.includes(`/chapter-${nextNum}`))
+      );
       if (numLink) return numLink.href;
     }
 
-    // 5. Text match
-    const textNext = allLinks.find(a => {
-      const t = a.textContent.trim().toLowerCase();
-      return (t === 'next' || t === 'next chapter' || t === 'next →') && a.href && a.href !== window.location.href;
+    // 5. Text content pattern
+    const textLink = allLinks.find(a => {
+      const t = (a.textContent || '').trim().toLowerCase();
+      return (t === 'next' || t === 'next chapter' || t === 'continue reading') &&
+             isValidHttpUrl(a.href) && a.href.split('#')[0] !== currentHref;
     });
-    if (textNext) return textNext.href;
+    if (textLink) return textLink.href;
 
     return null;
   }
@@ -659,101 +762,117 @@
   function goToNextChapter() {
     const nextHref = findNextChapterLink();
     if (nextHref) {
-      showToast('📖 Loading next chapter & continuing audio...');
-      sessionStorage.setItem('nac_autoplay', 'true');
+      showToast('📖 Handing over to next chapter...');
+      // Safe storage with 30s expiry timestamp
+      sessionStorage.setItem('nac_autoplay', JSON.stringify({
+        origin: window.location.origin,
+        timestamp: Date.now()
+      }));
       setTimeout(() => {
         window.location.href = nextHref;
-      }, 700);
+      }, 600);
     } else {
-      showToast('Reached the latest chapter!');
+      showToast('Reached the latest chapter');
     }
   }
 
-  // --- 12. Distraction-Free Reader Mode ---
-  let readerOverlay = null;
-  let readerArticle = null;
-  let isReaderActive = false;
-
+  // --- 13. Distraction-Free Reader Mode ---
   function createReaderMode() {
     if (readerOverlay) return;
 
     readerOverlay = document.createElement('div');
     readerOverlay.id = 'nac-reader-overlay';
 
-    readerOverlay.innerHTML = `
-      <div class="nac-reader-topbar">
-        <button id="nac-rm-theme-btn" title="Cycle Theme (Midnight, OLED, Sepia, Light)">🎨 Theme</button>
-        <button id="nac-rm-font-btn" title="Cycle Font Family">Aa Font</button>
-        <button id="nac-rm-smaller-btn" title="Decrease font size">A-</button>
-        <button id="nac-rm-larger-btn" title="Increase font size">A+</button>
-        <button class="nac-btn-close-reader" id="nac-rm-close-btn" title="Exit Reader Mode">✕ Exit</button>
-      </div>
-      <article class="nac-reader-article" id="nac-reader-article-content">
-        <h1>${escapeHtml(chapterTitle || 'Chapter')}</h1>
-      </article>
-    `;
+    // Top control bar
+    const topBar = document.createElement('div');
+    topBar.className = 'nac-reader-topbar';
 
-    document.body.appendChild(readerOverlay);
-    readerArticle = readerOverlay.querySelector('#nac-reader-article-content');
+    const themeBtn = document.createElement('button');
+    themeBtn.id = 'nac-rm-theme-btn';
+    themeBtn.textContent = '🎨 Theme';
+    themeBtn.title = 'Cycle Theme (Midnight, OLED, Sepia, Light)';
 
-    // Populate with cleaned paragraphs
+    const fontBtn = document.createElement('button');
+    fontBtn.id = 'nac-rm-font-btn';
+    fontBtn.textContent = 'Aa Font';
+    fontBtn.title = 'Cycle Font';
+
+    const smallerBtn = document.createElement('button');
+    smallerBtn.id = 'nac-rm-smaller-btn';
+    smallerBtn.textContent = 'A-';
+    smallerBtn.title = 'Decrease font size';
+
+    const largerBtn = document.createElement('button');
+    largerBtn.id = 'nac-rm-larger-btn';
+    largerBtn.textContent = 'A+';
+    largerBtn.title = 'Increase font size';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'nac-btn-close-reader';
+    closeBtn.id = 'nac-rm-close-btn';
+    closeBtn.textContent = '✕ Exit';
+    closeBtn.title = 'Exit Reader Mode';
+
+    topBar.append(themeBtn, fontBtn, smallerBtn, largerBtn, closeBtn);
+
+    // Article Content
+    readerArticle = document.createElement('article');
+    readerArticle.className = 'nac-reader-article';
+    readerArticle.id = 'nac-reader-article-content';
+
+    const h1 = document.createElement('h1');
+    h1.textContent = chapterTitle || 'Chapter';
+    readerArticle.appendChild(h1);
+
     paragraphs.forEach((p, idx) => {
-      const cloneP = document.createElement('p');
-      cloneP.textContent = p.textContent;
-      cloneP.dataset.nacIndex = idx;
-      cloneP.classList.add('nac-paragraph-target');
-      cloneP.onclick = () => playParagraph(idx);
-      readerArticle.appendChild(cloneP);
+      const clone = document.createElement('p');
+      clone.textContent = p.textContent;
+      clone.dataset.nacIndex = idx;
+      clone.className = 'nac-paragraph-target';
+      clone.onclick = () => playParagraph(idx);
+      readerArticle.appendChild(clone);
     });
+
+    readerOverlay.append(topBar, readerArticle);
+    document.body.appendChild(readerOverlay);
 
     applyReaderStyles();
 
-    // Topbar events
-    readerOverlay.querySelector('#nac-rm-close-btn').addEventListener('click', toggleReaderMode);
+    // Event listeners
+    closeBtn.addEventListener('click', toggleReaderMode);
 
     const themes = ['midnight', 'oled', 'sepia', 'light'];
-    readerOverlay.querySelector('#nac-rm-theme-btn').addEventListener('click', () => {
+    themeBtn.addEventListener('click', () => {
       const nextTheme = themes[(themes.indexOf(settings.readerTheme) + 1) % themes.length];
       settings.readerTheme = nextTheme;
-      chrome.storage.sync?.set({ readerTheme: nextTheme });
+      chrome.storage?.sync?.set({ readerTheme: nextTheme });
       applyReaderStyles();
     });
 
     const fonts = ['serif', 'sans', 'inter', 'dyslexic'];
-    readerOverlay.querySelector('#nac-rm-font-btn').addEventListener('click', () => {
+    fontBtn.addEventListener('click', () => {
       const nextFont = fonts[(fonts.indexOf(settings.readerFont) + 1) % fonts.length];
       settings.readerFont = nextFont;
-      chrome.storage.sync?.set({ readerFont: nextFont });
+      chrome.storage?.sync?.set({ readerFont: nextFont });
       applyReaderStyles();
     });
 
-    readerOverlay.querySelector('#nac-rm-smaller-btn').addEventListener('click', () => {
+    smallerBtn.addEventListener('click', () => {
       settings.readerFontSize = Math.max(14, (settings.readerFontSize || 19) - 1);
-      chrome.storage.sync?.set({ readerFontSize: settings.readerFontSize });
+      chrome.storage?.sync?.set({ readerFontSize: settings.readerFontSize });
       applyReaderStyles();
     });
 
-    readerOverlay.querySelector('#nac-rm-larger-btn').addEventListener('click', () => {
+    largerBtn.addEventListener('click', () => {
       settings.readerFontSize = Math.min(28, (settings.readerFontSize || 19) + 1);
-      chrome.storage.sync?.set({ readerFontSize: settings.readerFontSize });
+      chrome.storage?.sync?.set({ readerFontSize: settings.readerFontSize });
       applyReaderStyles();
     });
   }
 
   function applyReaderStyles() {
     if (!readerOverlay || !readerArticle) return;
-
-    // Remove existing classes
-    readerOverlay.className = '';
-    readerArticle.className = 'nac-reader-article';
-
-    // Theme
-    readerOverlay.classList.add(`nac-theme-${settings.readerTheme || 'midnight'}`);
-
-    // Font
-    readerOverlay.classList.add(`nac-font-${settings.readerFont || 'serif'}`);
-
-    // Size, line height, max-width
+    readerOverlay.className = `nac-theme-${settings.readerTheme || 'midnight'} nac-font-${settings.readerFont || 'serif'}`;
     readerArticle.style.fontSize = `${settings.readerFontSize || 19}px`;
     readerArticle.style.lineHeight = settings.readerLineHeight || 1.8;
     readerArticle.style.maxWidth = `${settings.readerMaxWidth || 760}px`;
@@ -766,45 +885,35 @@
       readerOverlay.classList.add('active');
       document.body.style.overflow = 'hidden';
       highlightParagraph(currentIdx);
-      showToast('📖 Reader Mode enabled (Alt+Shift+R to toggle)');
+      showToast('📖 Reader Mode enabled (Alt+Shift+R)');
     } else {
       if (readerOverlay) readerOverlay.classList.remove('active');
       document.body.style.overflow = '';
       highlightParagraph(currentIdx);
-      showToast('Exited Reader Mode');
     }
   }
 
-  // --- 13. Floating Island UI & Minimized Orb ---
-  let playerContainer = null;
-  let minimizedOrb = null;
-  let playBtn = null;
-  let progressLabel = null;
-  let progressTime = null;
-  let voiceSelect = null;
-  let speedSelect = null;
-  let eqVisualizer = null;
-
+  // --- 14. Humanized Floating Player UI ---
   function createUI() {
     playerContainer = document.createElement('div');
     playerContainer.id = 'nac-player-container';
 
     playerContainer.innerHTML = `
       <div class="nac-island-card">
-        <div class="nac-drag-handle" title="Drag to reposition player">⋮⋮</div>
+        <div class="nac-drag-handle" title="Drag player">⋮⋮</div>
 
         <button class="nac-btn" id="nac-prev-btn" title="Previous paragraph (Alt+Shift+Left)">⏮</button>
-        <button class="nac-btn nac-btn-play" id="nac-play-btn" title="Play / Pause (Space or Alt+Shift+P)">▶</button>
+        <button class="nac-btn nac-btn-play" id="nac-play-btn" title="Play / Pause (Alt+Shift+P)">▶</button>
         <button class="nac-btn" id="nac-next-btn" title="Next paragraph (Alt+Shift+Right)">⏭</button>
 
-        <div class="nac-progress-pill" id="nac-progress-pill" title="Click to view chapter progress">
+        <div class="nac-progress-pill" id="nac-progress-pill">
           <span class="nac-progress-label" id="nac-progress-label">0 / ${paragraphs.length}</span>
-          <span class="nac-progress-time" id="nac-progress-time">-- min left</span>
+          <span class="nac-progress-time" id="nac-progress-time">-- min</span>
         </div>
 
         <select class="nac-select" id="nac-voice-select" title="Voice Selection"></select>
 
-        <select class="nac-select" id="nac-speed-select" title="Reading Speed" style="max-width: 78px;">
+        <select class="nac-select" id="nac-speed-select" title="Speed">
           <option value="0.75">0.75x</option>
           <option value="0.9">0.9x</option>
           <option value="1.0">1.0x</option>
@@ -815,60 +924,42 @@
           <option value="2.0">2.0x</option>
         </select>
 
-        <button class="nac-pill-btn" id="nac-sleep-btn" title="Sleep Timer (15m, 30m, 45m)">
-          ⏱️ Sleep
-        </button>
+        <button class="nac-pill-btn" id="nac-sleep-btn" title="Sleep Timer">⏱️ Sleep</button>
+        <button class="nac-pill-btn" id="nac-reader-btn" title="Clean Reader Mode">📖 Reader</button>
 
-        <button class="nac-pill-btn" id="nac-reader-btn" title="Toggle Clean Reader View (Alt+Shift+R)">
-          📖 Reader
-        </button>
-
-        <button class="nac-btn" id="nac-settings-btn" title="Open Settings & Pronunciation Dictionary" style="font-size: 14px;">
-          ⚙️
-        </button>
-
-        <button class="nac-btn" id="nac-minimize-btn" title="Minimize floating player" style="width: 28px; height: 28px; font-size: 13px;">—</button>
+        <button class="nac-btn" id="nac-settings-btn" title="Options">⚙️</button>
+        <button class="nac-btn" id="nac-minimize-btn" title="Minimize floating bar">—</button>
       </div>
     `;
 
     document.body.appendChild(playerContainer);
 
-    // Minimized Orb with animated equalizer soundbars
+    // Minimized Dock Orb
     minimizedOrb = document.createElement('div');
     minimizedOrb.className = 'nac-minimized-orb';
     minimizedOrb.title = 'Open Novel Audio Companion';
     minimizedOrb.innerHTML = `
       <div class="nac-orb-content">
-        <div class="nac-equalizer" id="nac-equalizer">
-          <span class="nac-eq-bar"></span>
-          <span class="nac-eq-bar"></span>
-          <span class="nac-eq-bar"></span>
-          <span class="nac-eq-bar"></span>
-        </div>
         <span class="nac-orb-icon">🎧</span>
       </div>
     `;
     document.body.appendChild(minimizedOrb);
 
-    // Query UI elements
+    // Elements
     playBtn = playerContainer.querySelector('#nac-play-btn');
     progressLabel = playerContainer.querySelector('#nac-progress-label');
     progressTime = playerContainer.querySelector('#nac-progress-time');
     voiceSelect = playerContainer.querySelector('#nac-voice-select');
     speedSelect = playerContainer.querySelector('#nac-speed-select');
-    eqVisualizer = minimizedOrb.querySelector('#nac-equalizer');
+    sleepBtn = playerContainer.querySelector('#nac-sleep-btn');
 
     speedSelect.value = (settings.rate || 1.0).toString();
 
     // Event Handlers
     playBtn.addEventListener('click', () => {
-      if (!isPlaying) {
-        playParagraph(currentIdx);
-      } else if (isPaused) {
-        resumePlayback();
-      } else {
-        pausePlayback();
-      }
+      if (!isPlaying) playParagraph(currentIdx);
+      else if (isPaused) resumePlayback();
+      else pausePlayback();
     });
 
     playerContainer.querySelector('#nac-prev-btn').addEventListener('click', prevParagraph);
@@ -878,43 +969,31 @@
       selectedVoice = voices.find(v => v.voiceURI === e.target.value) || null;
       if (selectedVoice) {
         settings.voiceURI = selectedVoice.voiceURI;
-        chrome.storage.sync?.set({ voiceURI: selectedVoice.voiceURI });
+        chrome.storage?.sync?.set({ voiceURI: selectedVoice.voiceURI });
       }
-      if (isPlaying && !isPaused) {
-        playParagraph(currentIdx);
-      }
+      if (isPlaying && !isPaused) playParagraph(currentIdx);
     });
 
     speedSelect.addEventListener('change', (e) => {
       const rate = parseFloat(e.target.value);
       settings.rate = rate;
-      chrome.storage.sync?.set({ rate });
-      if (isPlaying && !isPaused) {
-        playParagraph(currentIdx);
-      }
+      chrome.storage?.sync?.set({ rate });
+      if (isPlaying && !isPaused) playParagraph(currentIdx);
     });
 
-    // Sleep Timer cycler
-    const sleepDurations = [0, 15, 30, 45, 60];
-    let currentSleepIdx = 0;
-    playerContainer.querySelector('#nac-sleep-btn').addEventListener('click', () => {
-      currentSleepIdx = (currentSleepIdx + 1) % sleepDurations.length;
-      setSleepTimer(sleepDurations[currentSleepIdx]);
+    const sleepTimes = [0, 15, 30, 45, 60];
+    let sleepIdx = 0;
+    sleepBtn.addEventListener('click', () => {
+      sleepIdx = (sleepIdx + 1) % sleepTimes.length;
+      setSleepTimer(sleepTimes[sleepIdx]);
     });
 
-    // Reader Mode toggle
     playerContainer.querySelector('#nac-reader-btn').addEventListener('click', toggleReaderMode);
 
-    // Open options
     playerContainer.querySelector('#nac-settings-btn').addEventListener('click', () => {
-      try {
-        if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-          chrome.runtime.sendMessage({ action: 'NAC_OPEN_OPTIONS' });
-        }
-      } catch (e) {}
+      chrome.runtime?.sendMessage?.({ action: 'NAC_OPEN_OPTIONS' });
     });
 
-    // Minimize & Restore
     playerContainer.querySelector('#nac-minimize-btn').addEventListener('click', () => {
       playerContainer.style.display = 'none';
       minimizedOrb.style.display = 'flex';
@@ -925,13 +1004,12 @@
       playerContainer.style.display = 'block';
     });
 
-    // Make floating container draggable
     makeDraggable(playerContainer);
 
-    // Keyboard shortcuts: Space (Play/Pause), Alt+Left, Alt+Right
+    // Safe contextual hotkeys (Avoid intercepting normal typing or webpage navigation)
     window.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-      if (e.code === 'Space') {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+      if (isReaderActive && e.code === 'Space') {
         e.preventDefault();
         playBtn.click();
       } else if (e.altKey && e.code === 'ArrowRight') {
@@ -946,6 +1024,7 @@
 
   function makeDraggable(el) {
     const handle = el.querySelector('.nac-drag-handle');
+    if (!handle) return;
     let isDragging = false;
     let startX = 0, startY = 0;
     let initialLeft = 0, initialTop = 0;
@@ -981,9 +1060,7 @@
     handle.addEventListener('pointerup', (e) => {
       if (isDragging) {
         isDragging = false;
-        try {
-          handle.releasePointerCapture(e.pointerId);
-        } catch (err) {}
+        try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
       }
     });
   }
@@ -995,7 +1072,7 @@
     voices.forEach(v => {
       const opt = document.createElement('option');
       opt.value = v.voiceURI;
-      let label = v.name.replace(/Microsoft /g, '').replace(/ Online \(Natural\)/g, ' (Natural)');
+      const label = v.name.replace(/Microsoft /g, '').replace(/ Online \(Natural\)/g, ' (Natural)');
       opt.textContent = `${label} (${v.lang})`;
       if (selectedVoice && v.voiceURI === selectedVoice.voiceURI) {
         opt.selected = true;
@@ -1010,11 +1087,9 @@
     if (isPlaying && !isPaused) {
       playBtn.textContent = '⏸';
       playBtn.classList.add('playing');
-      if (eqVisualizer) eqVisualizer.classList.add('active');
     } else {
       playBtn.textContent = '▶';
       playBtn.classList.remove('playing');
-      if (eqVisualizer) eqVisualizer.classList.remove('active');
     }
 
     if (progressLabel) {
@@ -1035,25 +1110,16 @@
 
     const toast = document.createElement('div');
     toast.className = 'nac-toast';
-    toast.innerHTML = `<span>${escapeHtml(msg)}</span>`;
+    toast.textContent = msg; // Strict textContent protection against DOM XSS
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3200);
   }
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>"']/g, m => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    })[m]);
-  }
-
-  // --- 14. Extension Message Listener (Popup & Background Dispatcher) ---
+  // --- 15. Extension Message Listener (Popup & Background Dispatcher) ---
   if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
+      if (!req || typeof req !== 'object') return false;
+
       if (req.action === 'GET_STATE') {
         sendResponse({
           isNovel: !!novelContainer,
@@ -1106,15 +1172,18 @@
       }
 
       if (req.action === 'SET_SPEED') {
-        settings.rate = parseFloat(req.speed);
-        if (speedSelect) speedSelect.value = settings.rate.toString();
-        if (isPlaying && !isPaused) playParagraph(currentIdx);
+        const rate = parseFloat(req.speed);
+        if (!isNaN(rate) && rate >= 0.5 && rate <= 3.0) {
+          settings.rate = rate;
+          if (speedSelect) speedSelect.value = rate.toString();
+          if (isPlaying && !isPaused) playParagraph(currentIdx);
+        }
         sendResponse({ success: true });
         return true;
       }
 
       if (req.action === 'SET_AUTONEXT') {
-        settings.autoNext = !!req.autoNext;
+        settings.autoNext = Boolean(req.autoNext);
         showToast(settings.autoNext ? 'Auto-Next chapter enabled' : 'Auto-Next disabled');
         sendResponse({ success: true });
         return true;
@@ -1122,18 +1191,21 @@
 
       if (req.action === 'CLEAN_DOM_NOW') {
         if (novelContainer) sanitizeNovelContent(novelContainer);
-        showToast('🛡️ Ads and overlay traps sanitized!');
+        showToast('🛡️ Ads and clutter sanitized');
         sendResponse({ success: true });
         return true;
       }
 
-      if (req.action === 'READ_SELECTION' && req.text) {
-        window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(applyDictionary(req.text));
-        if (selectedVoice) utt.voice = selectedVoice;
-        utt.rate = settings.rate || 1.0;
-        window.speechSynthesis.speak(utt);
-        showToast('🔊 Reading selection');
+      if (req.action === 'READ_SELECTION' && typeof req.text === 'string') {
+        const cleanText = req.text.trim().slice(0, 5000);
+        if (cleanText) {
+          window.speechSynthesis.cancel();
+          const utt = new SpeechSynthesisUtterance(applyDictionary(cleanText));
+          if (selectedVoice) utt.voice = selectedVoice;
+          utt.rate = settings.rate || 1.0;
+          window.speechSynthesis.speak(utt);
+          showToast('🔊 Reading selection');
+        }
         sendResponse({ success: true });
         return true;
       }
@@ -1142,39 +1214,37 @@
     });
   }
 
-  // --- 15. Main Initialization ---
+  // --- 16. Engine Bootstrapping ---
   async function init() {
     await initSettings();
 
     novelContainer = findNovelContainer();
-    if (!novelContainer) return;
+    if (!novelContainer) return; // Do not touch DOM on non-novel pages
 
-    // 1. Sanitize ads immediately
     sanitizeNovelContent(novelContainer);
-
-    // 2. Extract Titles
-    extractTitles();
-
-    // 3. Index Paragraphs & attach Click-to-Read
+    extractMetadata();
     initParagraphs(novelContainer);
-
-    // 4. Build Floating Island UI
     createUI();
-
-    // 5. Load Voices
     loadVoices();
+
     if (speechSynthesis.onvoiceschanged !== undefined) {
       speechSynthesis.onvoiceschanged = loadVoices;
     }
 
-    // 6. Check if autoplaying from previous chapter
-    if (sessionStorage.getItem('nac_autoplay') === 'true') {
-      sessionStorage.removeItem('nac_autoplay');
-      setTimeout(() => {
-        playParagraph(0);
-        showToast(`📖 Continuing ${chapterTitle || 'next chapter'}...`);
-      }, 1000);
-    }
+    // Check verified next-chapter handover with 30s expiration guard
+    try {
+      const storedHandover = sessionStorage.getItem('nac_autoplay');
+      if (storedHandover) {
+        sessionStorage.removeItem('nac_autoplay');
+        const data = JSON.parse(storedHandover);
+        if (data.origin === window.location.origin && Date.now() - data.timestamp < 30000) {
+          setTimeout(() => {
+            playParagraph(0);
+            showToast(`📖 Continuing: ${chapterTitle}`);
+          }, 800);
+        }
+      }
+    } catch (_) {}
   }
 
   if (document.readyState === 'loading') {
