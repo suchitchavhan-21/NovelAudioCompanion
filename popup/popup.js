@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // UI Elements
   const statusLabel = document.getElementById('nac-status-label');
   const pulseIndicator = document.getElementById('nac-pulse-indicator');
+  const popupEq = document.getElementById('nac-popup-eq');
   const chapterTitle = document.getElementById('nac-chapter-title');
   const novelMeta = document.getElementById('nac-novel-meta');
   const progressFill = document.getElementById('nac-progress-fill');
@@ -65,6 +66,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function applyState(state) {
     pulseIndicator.classList.add('active');
+    const isActivelyNarrating = state.isPlaying && !state.isPaused;
+    if (popupEq) popupEq.classList.toggle('playing', isActivelyNarrating);
     statusLabel.textContent = state.isPlaying ? (state.isPaused ? 'Paused' : 'Playing') : 'Ready to read';
 
     chapterTitle.textContent = state.chapterTitle || 'Chapter Detected';
@@ -96,6 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function setStandbyState(msg) {
     pulseIndicator.classList.remove('active');
+    if (popupEq) popupEq.classList.remove('playing');
     statusLabel.textContent = 'Standby';
     chapterTitle.textContent = 'Novel Audio Companion';
     novelMeta.textContent = msg;

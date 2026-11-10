@@ -60,11 +60,14 @@
   let playBtn = null;
   let progressLabel = null;
   let progressTime = null;
+  let equalizerEl = null;
+  let speedBadge = null;
   let voiceSelect = null;
   let speedSelect = null;
   let sleepBtn = null;
   let autoNextBtn = null;
   let readerAutoNextBtn = null;
+  let morePopover = null;
   let readerOverlay = null;
   let readerArticle = null;
   let isReaderActive = false;
@@ -72,7 +75,7 @@
   function updateAutoNextButtons() {
     const isEnabled = settings.autoNext !== false;
     if (autoNextBtn) {
-      autoNextBtn.textContent = isEnabled ? '🔄 Auto: ON' : '🔄 Auto: OFF';
+      autoNextBtn.innerHTML = `<span class="nac-dot"></span>Auto: ${isEnabled ? 'ON' : 'OFF'}`;
       autoNextBtn.classList.toggle('active', isEnabled);
       autoNextBtn.title = isEnabled ? 'Auto-Next chapter is enabled (click to disable)' : 'Auto-Next chapter is disabled (click to enable)';
     }
@@ -80,6 +83,15 @@
       readerAutoNextBtn.textContent = isEnabled ? '🔄 Auto: ON' : '🔄 Auto: OFF';
       readerAutoNextBtn.classList.toggle('active', isEnabled);
       readerAutoNextBtn.title = isEnabled ? 'Auto-Next chapter is enabled (click to disable)' : 'Auto-Next chapter is disabled (click to enable)';
+    }
+  }
+
+  function updateSpeedBadge() {
+    if (speedBadge) {
+      const rate = parseFloat(settings.rate || 1.0);
+      const text = rate % 1 === 0 ? `${rate.toFixed(1)}x` : `${rate}x`;
+      speedBadge.textContent = text;
+      speedBadge.title = `Reading speed: ${text} (click to cycle)`;
     }
   }
 
@@ -95,8 +107,9 @@
             for (const [key, change] of Object.entries(changes)) {
               settings[key] = change.newValue;
             }
-            if (changes.rate && speedSelect) {
-              speedSelect.value = settings.rate.toString();
+            if (changes.rate) {
+              if (speedSelect) speedSelect.value = settings.rate.toString();
+              updateSpeedBadge();
             }
             if (changes.voiceURI) {
               matchPreferredVoice();
@@ -803,6 +816,15 @@
     readerOverlay = document.createElement('div');
     readerOverlay.id = 'nac-reader-overlay';
 
+    // Reading progress track at very top
+    const progressTrack = document.createElement('div');
+    progressTrack.className = 'nac-reader-progress-track';
+    const progressBar = document.createElement('div');
+    progressBar.className = 'nac-reader-progress-bar';
+    progressBar.id = 'nac-reader-scroll-progress';
+    progressTrack.appendChild(progressBar);
+    readerOverlay.appendChild(progressTrack);
+
     // Top control bar
     const topBar = document.createElement('div');
     topBar.className = 'nac-reader-topbar';
@@ -866,6 +888,30 @@
     readerOverlay.append(topBar, readerArticle);
     document.body.appendChild(readerOverlay);
 
+    // Scroll-aware auto-hiding topbar (Content-First Noise Reduction)
+    let lastScrollTop = 0;
+    readerOverlay.addEventListener('scroll', () => {
+      const maxScroll = readerOverlay.scrollHeight - readerOverlay.clientHeight;
+      if (maxScroll > 0) {
+        const pct = Math.min(100, Math.max(0, (readerOverlay.scrollTop / maxScroll) * 100));
+        progressBar.style.width = `${pct}%`;
+      }
+      const currentScrollTop = readerOverlay.scrollTop;
+      if (currentScrollTop > 70 && currentScrollTop > lastScrollTop) {
+        topBar.classList.add('nac-topbar-hidden');
+      } else {
+        topBar.classList.remove('nac-topbar-hidden');
+      }
+      lastScrollTop = currentScrollTop;
+    }, { passive: true });
+
+    // Reveal topbar when cursor moves near top of reader view
+    readerOverlay.addEventListener('mousemove', (e) => {
+      if (e.clientY < 60) {
+        topBar.classList.remove('nac-topbar-hidden');
+      }
+    });
+
     applyReaderStyles();
 
     // Event listeners
@@ -904,8 +950,8 @@
     if (!readerOverlay || !readerArticle) return;
     readerOverlay.className = `nac-theme-${settings.readerTheme || 'midnight'} nac-font-${settings.readerFont || 'serif'}`;
     readerArticle.style.fontSize = `${settings.readerFontSize || 19}px`;
-    readerArticle.style.lineHeight = settings.readerLineHeight || 1.8;
-    readerArticle.style.maxWidth = `${settings.readerMaxWidth || 760}px`;
+    readerArticle.style.lineHeight = settings.readerLineHeight || 1.82;
+    readerArticle.style.maxWidth = settings.readerMaxWidth ? `${settings.readerMaxWidth}px` : '68ch';
   }
 
   function toggleReaderMode() {
@@ -923,43 +969,61 @@
     }
   }
 
-  // --- 14. Humanized Floating Player UI ---
+  // --- 14. World-Class Dynamic Island Floating Player ---
   function createUI() {
     playerContainer = document.createElement('div');
     playerContainer.id = 'nac-player-container';
 
     playerContainer.innerHTML = `
       <div class="nac-island-card">
-        <div class="nac-drag-handle" title="Drag player">⋮⋮</div>
+        <div class="nac-drag-handle" title="Drag player" aria-label="Drag player widget">⋮⋮</div>
 
         <button class="nac-btn" id="nac-prev-btn" title="Previous paragraph (Alt+Shift+Left)" aria-label="Previous paragraph">⏮</button>
         <button class="nac-btn nac-btn-play" id="nac-play-btn" title="Play / Pause (Alt+Shift+P)" aria-label="Play or pause narration">▶</button>
         <button class="nac-btn" id="nac-next-btn" title="Next paragraph (Alt+Shift+Right)" aria-label="Next paragraph">⏭</button>
 
         <div class="nac-progress-pill" id="nac-progress-pill" role="status" aria-label="Chapter reading progress">
+          <span class="nac-equalizer" id="nac-equalizer" aria-hidden="true">
+            <span class="nac-eq-bar"></span>
+            <span class="nac-eq-bar"></span>
+            <span class="nac-eq-bar"></span>
+            <span class="nac-eq-bar"></span>
+          </span>
           <span class="nac-progress-label" id="nac-progress-label">0 / ${paragraphs.length}</span>
           <span class="nac-progress-time" id="nac-progress-time">-- min</span>
         </div>
 
-        <select class="nac-select" id="nac-voice-select" title="Voice Selection" aria-label="Voice Selection"></select>
-
-        <select class="nac-select" id="nac-speed-select" title="Speed" aria-label="Reading Speed">
-          <option value="0.75">0.75x</option>
-          <option value="0.9">0.9x</option>
-          <option value="1.0">1.0x</option>
-          <option value="1.2">1.2x</option>
-          <option value="1.4">1.4x</option>
-          <option value="1.6">1.6x</option>
-          <option value="1.8">1.8x</option>
-          <option value="2.0">2.0x</option>
-        </select>
-
-        <button class="nac-pill-btn nac-autonext-btn" id="nac-autonext-btn" title="Toggle Auto-Next Chapter" aria-label="Toggle Auto-Next Chapter">🔄 Auto: ON</button>
-        <button class="nac-pill-btn" id="nac-sleep-btn" title="Sleep Timer" aria-label="Sleep Timer">⏱️ Sleep</button>
-        <button class="nac-pill-btn" id="nac-reader-btn" title="Clean Reader Mode" aria-label="Toggle Clean Reader Mode">📖 Reader</button>
-
-        <button class="nac-btn" id="nac-settings-btn" title="Options" aria-label="Open Settings">⚙️</button>
+        <button class="nac-speed-badge" id="nac-speed-badge" title="Click to cycle speed" aria-label="Reading Speed">1.0x</button>
+        <button class="nac-autonext-btn" id="nac-autonext-btn" title="Toggle Auto-Next Chapter" aria-label="Toggle Auto-Next Chapter"><span class="nac-dot"></span>Auto: ON</button>
+        <button class="nac-sleep-pill" id="nac-sleep-btn" title="Sleep Timer" aria-label="Sleep Timer">⏱️ Sleep</button>
+        <button class="nac-btn" id="nac-reader-btn" title="Clean Reader Mode (Alt+Shift+R)" aria-label="Toggle Clean Reader Mode">📖</button>
+        <button class="nac-btn" id="nac-more-btn" title="Voice & Audio Settings" aria-label="Voice and Audio Settings">🎙️</button>
         <button class="nac-btn" id="nac-minimize-btn" title="Minimize floating bar" aria-label="Minimize Player Bar">—</button>
+
+        <!-- Secondary Voice & Audio Popover -->
+        <div class="nac-more-popover" id="nac-more-popover" style="display: none;">
+          <div class="nac-popover-header">
+            <span class="nac-popover-title">🎙️ Audio & Voice</span>
+            <button class="nac-popover-close" id="nac-popover-close" aria-label="Close voice menu">✕</button>
+          </div>
+          <div class="nac-popover-row">
+            <label for="nac-voice-select" class="nac-popover-label">Narrator Voice:</label>
+            <select class="nac-select-custom" id="nac-voice-select" title="Voice Selection" aria-label="Voice Selection"></select>
+          </div>
+          <div class="nac-popover-row">
+            <span class="nac-popover-label">Sleep Timer:</span>
+            <div class="nac-timer-chips" id="nac-timer-chips">
+              <button class="nac-timer-chip" data-min="15">15m</button>
+              <button class="nac-timer-chip" data-min="30">30m</button>
+              <button class="nac-timer-chip" data-min="45">45m</button>
+              <button class="nac-timer-chip" data-min="60">60m</button>
+              <button class="nac-timer-chip" data-min="0">Off</button>
+            </div>
+          </div>
+          <div class="nac-popover-footer">
+            <button class="nac-btn-link" id="nac-settings-btn" aria-label="Open Full Settings">⚙️ Full Settings & Dictionary</button>
+          </div>
+        </div>
       </div>
     `;
 
@@ -983,14 +1047,17 @@
     playBtn = playerContainer.querySelector('#nac-play-btn');
     progressLabel = playerContainer.querySelector('#nac-progress-label');
     progressTime = playerContainer.querySelector('#nac-progress-time');
+    equalizerEl = playerContainer.querySelector('#nac-equalizer');
+    speedBadge = playerContainer.querySelector('#nac-speed-badge');
     voiceSelect = playerContainer.querySelector('#nac-voice-select');
-    speedSelect = playerContainer.querySelector('#nac-speed-select');
     sleepBtn = playerContainer.querySelector('#nac-sleep-btn');
     autoNextBtn = playerContainer.querySelector('#nac-autonext-btn');
+    morePopover = playerContainer.querySelector('#nac-more-popover');
 
-    speedSelect.value = (settings.rate || 1.0).toString();
+    updateSpeedBadge();
     updateAutoNextButtons();
 
+    // Auto-Next Handover Toggle
     autoNextBtn.addEventListener('click', () => {
       settings.autoNext = !(settings.autoNext !== false);
       chrome.storage?.sync?.set({ autoNext: settings.autoNext });
@@ -998,7 +1065,40 @@
       showToast(settings.autoNext ? '🔄 Auto-Next chapter enabled' : '⏸️ Auto-Next chapter disabled');
     });
 
-    // Event Handlers
+    // Speed Cycle Handler (0.75x -> 1.0x -> 1.25x -> 1.5x -> 1.75x -> 2.0x)
+    const speeds = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+    speedBadge.addEventListener('click', () => {
+      const currentRate = parseFloat(settings.rate || 1.0);
+      let idx = speeds.findIndex(s => Math.abs(s - currentRate) < 0.05);
+      const nextRate = speeds[(idx + 1) % speeds.length];
+      settings.rate = nextRate;
+      chrome.storage?.sync?.set({ rate: nextRate });
+      updateSpeedBadge();
+      showToast(`Speed: ${nextRate}x`);
+      if (isPlaying && !isPaused) playParagraph(currentIdx);
+    });
+
+    // Audio Popover Toggle
+    const moreBtn = playerContainer.querySelector('#nac-more-btn');
+    const closePopoverBtn = playerContainer.querySelector('#nac-popover-close');
+
+    moreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = morePopover.style.display === 'none';
+      morePopover.style.display = isHidden ? 'flex' : 'none';
+    });
+
+    closePopoverBtn.addEventListener('click', () => {
+      morePopover.style.display = 'none';
+    });
+
+    document.addEventListener('pointerdown', (e) => {
+      if (morePopover && morePopover.style.display !== 'none' && !playerContainer.contains(e.target)) {
+        morePopover.style.display = 'none';
+      }
+    });
+
+    // Playback Controls
     playBtn.addEventListener('click', () => {
       if (!isPlaying) playParagraph(currentIdx);
       else if (isPaused) resumePlayback();
@@ -1008,27 +1108,34 @@
     playerContainer.querySelector('#nac-prev-btn').addEventListener('click', prevParagraph);
     playerContainer.querySelector('#nac-next-btn').addEventListener('click', nextParagraph);
 
+    // Voice Selection in Popover
     voiceSelect.addEventListener('change', (e) => {
       selectedVoice = voices.find(v => v.voiceURI === e.target.value) || null;
       if (selectedVoice) {
         settings.voiceURI = selectedVoice.voiceURI;
         chrome.storage?.sync?.set({ voiceURI: selectedVoice.voiceURI });
+        showToast(`Voice: ${selectedVoice.name.replace(/Microsoft /g, '').slice(0, 24)}`);
       }
       if (isPlaying && !isPaused) playParagraph(currentIdx);
     });
 
-    speedSelect.addEventListener('change', (e) => {
-      const rate = parseFloat(e.target.value);
-      settings.rate = rate;
-      chrome.storage?.sync?.set({ rate });
-      if (isPlaying && !isPaused) playParagraph(currentIdx);
-    });
-
+    // Sleep Timer Button Cycling
     const sleepTimes = [0, 15, 30, 45, 60];
     let sleepIdx = 0;
     sleepBtn.addEventListener('click', () => {
       sleepIdx = (sleepIdx + 1) % sleepTimes.length;
       setSleepTimer(sleepTimes[sleepIdx]);
+    });
+
+    // Sleep Chips in Popover
+    const timerChips = playerContainer.querySelectorAll('.nac-timer-chip');
+    timerChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        timerChips.forEach(c => c.classList.remove('active'));
+        const minutes = parseInt(chip.dataset.min, 10);
+        if (minutes > 0) chip.classList.add('active');
+        setSleepTimer(minutes);
+      });
     });
 
     playerContainer.querySelector('#nac-reader-btn').addEventListener('click', toggleReaderMode);
@@ -1130,9 +1237,13 @@
     if (isPlaying && !isPaused) {
       playBtn.textContent = '⏸';
       playBtn.classList.add('playing');
+      if (equalizerEl) equalizerEl.classList.add('playing');
+      if (minimizedOrb) minimizedOrb.classList.add('speaking');
     } else {
       playBtn.textContent = '▶';
       playBtn.classList.remove('playing');
+      if (equalizerEl) equalizerEl.classList.remove('playing');
+      if (minimizedOrb) minimizedOrb.classList.remove('speaking');
     }
 
     if (progressLabel) {
@@ -1145,6 +1256,8 @@
       const estMinutes = Math.ceil((remainingParas * 35) / (200 * (settings.rate || 1.0)));
       progressTime.textContent = remainingParas > 0 ? `~${estMinutes}m left` : 'Completed';
     }
+
+    updateSpeedBadge();
   }
 
   function showToast(msg) {

@@ -61,23 +61,31 @@
       touch-action: none;
     }
     .nac-island-card {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(13, 17, 23, 0.94);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 40px;
-      padding: 6px 14px;
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
-      color: #f1f5f9;
+      height: 48px;
+      background: rgba(13, 17, 23, 0.88);
+      backdrop-filter: blur(24px) saturate(190%);
+      -webkit-backdrop-filter: blur(24px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+      padding: 0 12px 0 10px;
+      box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+      transition: box-shadow 0.25s ease;
+    }
+    .nac-island-card:hover {
+      box-shadow: 0 24px 54px -10px rgba(0, 0, 0, 0.72), 0 0 1px rgba(255, 255, 255, 0.35);
     }
     .nac-drag-handle {
       cursor: grab;
-      padding: 0 4px;
+      padding: 0 6px 0 2px;
       color: #64748b;
       font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      letter-spacing: -1px;
     }
     .nac-drag-handle:active { cursor: grabbing; }
     .nac-btn {
@@ -89,73 +97,129 @@
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      width: 34px;
-      height: 34px;
-      font-size: 14px;
-      transition: background 0.15s, color 0.15s, transform 0.15s;
+      width: 32px;
+      height: 32px;
+      font-size: 13px;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .nac-btn:hover {
       background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
-      transform: scale(1.04);
+      transform: scale(1.08);
     }
-    .nac-btn:active { transform: scale(0.96); }
+    .nac-btn:active { transform: scale(0.92); }
     .nac-btn-play {
       background: #2563eb;
       color: white;
-      width: 38px;
-      height: 38px;
-      font-size: 16px;
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+      width: 36px;
+      height: 36px;
+      font-size: 15px;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .nac-btn-play:hover { background: #1d4ed8; }
-    .nac-btn-play.playing { background: #059669; }
+    .nac-btn-play:hover {
+      background: #1d4ed8;
+      transform: scale(1.08);
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.55);
+    }
+    .nac-btn-play.playing {
+      background: #059669;
+      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45);
+    }
     .nac-progress-pill {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-      padding: 3px 9px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      min-width: 80px;
-      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      cursor: default;
     }
-    .nac-progress-label { font-size: 11px; font-weight: 600; color: #e2e8f0; }
-    .nac-progress-time { font-size: 10px; color: #94a3b8; }
+    .nac-equalizer {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2.5px;
+      height: 14px;
+    }
+    .nac-eq-bar {
+      width: 2.5px;
+      height: 3px;
+      background: #3b82f6;
+      border-radius: 2px;
+      transition: height 0.2s ease, background-color 0.2s ease;
+    }
+    .nac-equalizer.playing .nac-eq-bar {
+      background: #10b981;
+    }
+    .nac-equalizer.playing .nac-eq-bar:nth-child(1) { animation: nac-eq-b1 0.75s ease-in-out infinite alternate; }
+    .nac-equalizer.playing .nac-eq-bar:nth-child(2) { animation: nac-eq-b2 1.05s ease-in-out 0.15s infinite alternate; }
+    .nac-equalizer.playing .nac-eq-bar:nth-child(3) { animation: nac-eq-b3 0.65s ease-in-out 0.35s infinite alternate; }
+    .nac-equalizer.playing .nac-eq-bar:nth-child(4) { animation: nac-eq-b4 0.9s ease-in-out 0.2s infinite alternate; }
+    @keyframes nac-eq-b1 { 0% { height: 3px; } 100% { height: 13px; } }
+    @keyframes nac-eq-b2 { 0% { height: 4px; } 100% { height: 14px; } }
+    @keyframes nac-eq-b3 { 0% { height: 3px; } 100% { height: 11px; } }
+    @keyframes nac-eq-b4 { 0% { height: 4px; } 100% { height: 13px; } }
+    .nac-progress-label { font-size: 11px; font-weight: 600; color: #f1f5f9; letter-spacing: -0.2px; }
+    .nac-progress-time { font-size: 10px; font-weight: 500; color: #94a3b8; }
     .nac-select {
       background: #1e293b;
       color: #f1f5f9;
       border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 14px;
+      border-radius: 9999px;
       padding: 4px 8px;
-      font-size: 12px;
+      font-size: 11px;
       outline: none;
       cursor: pointer;
       max-width: 140px;
     }
-    .nac-pill-btn {
+    .nac-autonext-btn {
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.1);
       color: #cbd5e1;
-      padding: 4px 10px;
-      border-radius: 14px;
+      padding: 4px 9px;
+      border-radius: 9999px;
       font-size: 11px;
       font-weight: 500;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
     }
-    .nac-pill-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+    .nac-autonext-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+    .nac-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #64748b;
+      display: inline-block;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .nac-autonext-btn.active {
+      background: rgba(5, 150, 105, 0.15);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: #a7f3d0;
+    }
+    .nac-autonext-btn.active .nac-dot {
+      background-color: #10b981;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
     .nac-toast {
       position: fixed;
       bottom: 84px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
       color: #f8fafc;
       font-size: 13px;
       font-weight: 500;
-      padding: 8px 16px;
-      border-radius: 20px;
+      padding: 8px 18px;
+      border-radius: 9999px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
       z-index: 2147483647;
       pointer-events: none;
     }
@@ -423,6 +487,8 @@
   function createUI() {
     playerContainer = document.createElement('div');
     playerContainer.id = 'nac-player-container';
+    let equalizerEl = null;
+
     playerContainer.innerHTML = `
       <div class="nac-island-card">
         <div class="nac-drag-handle" title="Drag player">⋮⋮</div>
@@ -430,6 +496,12 @@
         <button class="nac-btn nac-btn-play" id="nac-play-btn" title="Play / Pause">▶</button>
         <button class="nac-btn" id="nac-next-btn" title="Next paragraph">⏭</button>
         <div class="nac-progress-pill">
+          <span class="nac-equalizer" id="nac-equalizer" aria-hidden="true">
+            <span class="nac-eq-bar"></span>
+            <span class="nac-eq-bar"></span>
+            <span class="nac-eq-bar"></span>
+            <span class="nac-eq-bar"></span>
+          </span>
           <span class="nac-progress-label" id="nac-progress-label">0 / ${paragraphs.length}</span>
           <span class="nac-progress-time" id="nac-progress-time">-- min</span>
         </div>
@@ -441,7 +513,7 @@
           <option value="1.5">1.5x</option>
           <option value="2.0">2.0x</option>
         </select>
-        <button class="nac-pill-btn nac-autonext-btn" id="nac-autonext-btn" title="Toggle Auto-Next Chapter">🔄 Auto: ON</button>
+        <button class="nac-autonext-btn" id="nac-autonext-btn" title="Toggle Auto-Next Chapter"><span class="nac-dot"></span>Auto: ON</button>
       </div>
     `;
     document.body.appendChild(playerContainer);
@@ -449,22 +521,14 @@
     playBtn = playerContainer.querySelector('#nac-play-btn');
     progressLabel = playerContainer.querySelector('#nac-progress-label');
     progressTime = playerContainer.querySelector('#nac-progress-time');
+    equalizerEl = playerContainer.querySelector('#nac-equalizer');
     const voiceSelect = playerContainer.querySelector('#nac-voice-select');
     const speedSelect = playerContainer.querySelector('#nac-speed-select');
     const autoNextBtn = playerContainer.querySelector('#nac-autonext-btn');
 
     function updateAutoNextBtn() {
-      if (autoNext) {
-        autoNextBtn.textContent = '🔄 Auto: ON';
-        autoNextBtn.style.background = 'rgba(37, 99, 235, 0.3)';
-        autoNextBtn.style.color = '#bfdbfe';
-        autoNextBtn.style.borderColor = '#3b82f6';
-      } else {
-        autoNextBtn.textContent = '🔄 Auto: OFF';
-        autoNextBtn.style.background = 'rgba(255, 255, 255, 0.06)';
-        autoNextBtn.style.color = '#cbd5e1';
-        autoNextBtn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-      }
+      autoNextBtn.innerHTML = `<span class="nac-dot"></span>Auto: ${autoNext ? 'ON' : 'OFF'}`;
+      autoNextBtn.classList.toggle('active', autoNext);
     }
     updateAutoNextBtn();
 
@@ -543,8 +607,11 @@
 
   function updateUI() {
     if (!playBtn) return;
-    playBtn.textContent = (isPlaying && !isPaused) ? '⏸' : '▶';
-    playBtn.classList.toggle('playing', isPlaying && !isPaused);
+    const isActivelyPlaying = isPlaying && !isPaused;
+    playBtn.textContent = isActivelyPlaying ? '⏸' : '▶';
+    playBtn.classList.toggle('playing', isActivelyPlaying);
+    const eq = playerContainer?.querySelector('#nac-equalizer');
+    if (eq) eq.classList.toggle('playing', isActivelyPlaying);
     if (progressLabel) progressLabel.textContent = `${currentIdx + 1} / ${paragraphs.length}`;
     if (progressTime) {
       const left = Math.max(0, paragraphs.length - (currentIdx + 1));
