@@ -902,18 +902,18 @@
       <div class="nac-island-card">
         <div class="nac-drag-handle" title="Drag player">⋮⋮</div>
 
-        <button class="nac-btn" id="nac-prev-btn" title="Previous paragraph (Alt+Shift+Left)">⏮</button>
-        <button class="nac-btn nac-btn-play" id="nac-play-btn" title="Play / Pause (Alt+Shift+P)">▶</button>
-        <button class="nac-btn" id="nac-next-btn" title="Next paragraph (Alt+Shift+Right)">⏭</button>
+        <button class="nac-btn" id="nac-prev-btn" title="Previous paragraph (Alt+Shift+Left)" aria-label="Previous paragraph">⏮</button>
+        <button class="nac-btn nac-btn-play" id="nac-play-btn" title="Play / Pause (Alt+Shift+P)" aria-label="Play or pause narration">▶</button>
+        <button class="nac-btn" id="nac-next-btn" title="Next paragraph (Alt+Shift+Right)" aria-label="Next paragraph">⏭</button>
 
-        <div class="nac-progress-pill" id="nac-progress-pill">
+        <div class="nac-progress-pill" id="nac-progress-pill" role="status" aria-label="Chapter reading progress">
           <span class="nac-progress-label" id="nac-progress-label">0 / ${paragraphs.length}</span>
           <span class="nac-progress-time" id="nac-progress-time">-- min</span>
         </div>
 
-        <select class="nac-select" id="nac-voice-select" title="Voice Selection"></select>
+        <select class="nac-select" id="nac-voice-select" title="Voice Selection" aria-label="Voice Selection"></select>
 
-        <select class="nac-select" id="nac-speed-select" title="Speed">
+        <select class="nac-select" id="nac-speed-select" title="Speed" aria-label="Reading Speed">
           <option value="0.75">0.75x</option>
           <option value="0.9">0.9x</option>
           <option value="1.0">1.0x</option>
@@ -924,11 +924,11 @@
           <option value="2.0">2.0x</option>
         </select>
 
-        <button class="nac-pill-btn" id="nac-sleep-btn" title="Sleep Timer">⏱️ Sleep</button>
-        <button class="nac-pill-btn" id="nac-reader-btn" title="Clean Reader Mode">📖 Reader</button>
+        <button class="nac-pill-btn" id="nac-sleep-btn" title="Sleep Timer" aria-label="Sleep Timer">⏱️ Sleep</button>
+        <button class="nac-pill-btn" id="nac-reader-btn" title="Clean Reader Mode" aria-label="Toggle Clean Reader Mode">📖 Reader</button>
 
-        <button class="nac-btn" id="nac-settings-btn" title="Options">⚙️</button>
-        <button class="nac-btn" id="nac-minimize-btn" title="Minimize floating bar">—</button>
+        <button class="nac-btn" id="nac-settings-btn" title="Options" aria-label="Open Settings">⚙️</button>
+        <button class="nac-btn" id="nac-minimize-btn" title="Minimize floating bar" aria-label="Minimize Player Bar">—</button>
       </div>
     `;
 
@@ -938,6 +938,9 @@
     minimizedOrb = document.createElement('div');
     minimizedOrb.className = 'nac-minimized-orb';
     minimizedOrb.title = 'Open Novel Audio Companion';
+    minimizedOrb.setAttribute('role', 'button');
+    minimizedOrb.setAttribute('tabindex', '0');
+    minimizedOrb.setAttribute('aria-label', 'Open Novel Audio Companion player');
     minimizedOrb.innerHTML = `
       <div class="nac-orb-content">
         <span class="nac-orb-icon">🎧</span>

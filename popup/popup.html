@@ -49,9 +49,9 @@
     <!-- Playback Controls -->
     <section class="nac-playback-section" id="nac-playback-section">
       <div class="nac-controls-row">
-        <button class="nac-ctrl-btn" id="nac-btn-prev" title="Previous paragraph (Alt+Shift+Left)">⏮</button>
-        <button class="nac-ctrl-btn nac-play-main" id="nac-btn-play" title="Play / Pause (Alt+Shift+P)">▶</button>
-        <button class="nac-ctrl-btn" id="nac-btn-next" title="Next paragraph (Alt+Shift+Right)">⏭</button>
+        <button class="nac-ctrl-btn" id="nac-btn-prev" title="Previous paragraph (Alt+Shift+Left)" aria-label="Previous paragraph">⏮</button>
+        <button class="nac-ctrl-btn nac-play-main" id="nac-btn-play" title="Play / Pause (Alt+Shift+P)" aria-label="Play or pause narration">▶</button>
+        <button class="nac-ctrl-btn" id="nac-btn-next" title="Next paragraph (Alt+Shift+Right)" aria-label="Next paragraph">⏭</button>
       </div>
 
       <!-- Quick Speed Select -->
@@ -75,7 +75,7 @@
           <span class="nac-toggle-desc">Continuous playback across pages</span>
         </div>
         <label class="nac-switch">
-          <input type="checkbox" id="nac-toggle-autonext">
+          <input type="checkbox" id="nac-toggle-autonext" aria-label="Enable auto-next chapter">
           <span class="nac-slider"></span>
         </label>
       </div>

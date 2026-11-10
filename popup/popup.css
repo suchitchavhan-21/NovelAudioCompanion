@@ -420,3 +420,13 @@ input:checked + .nac-slider:before {
   border-radius: 3px;
   color: #cbd5e1;
 }
+
+/* Accessibility Focus Ring (WCAG 2.1 AA) */
+.nac-ctrl-btn:focus-visible,
+.nac-chip:focus-visible,
+.nac-action-pill:focus-visible,
+.nac-icon-btn:focus-visible,
+.nac-switch input:focus-visible + .nac-slider {
+  outline: 2px solid var(--accent-primary) !important;
+  outline-offset: 2px !important;
+}

@@ -3,7 +3,7 @@
   "name": "Novel Audio Companion - Web Novel TTS & Clean Reader",
   "short_name": "NovelAudio",
   "version": "2.0.0",
-  "description": "Premium text-to-speech companion and distraction-free reader for web novels. Natural voices, auto-next chapter, ad killer, word highlight & dictionary.",
+  "description": "Audiobook narration and clean reader for web novels. Natural voices, auto-next chapter, ad killer, word tracking and dictionary.",
   "permissions": [
     "storage",
     "activeTab",

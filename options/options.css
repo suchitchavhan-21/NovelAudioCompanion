@@ -609,3 +609,14 @@ body {
   gap: 16px;
   margin-top: 10px;
 }
+
+/* Accessibility Focus Ring (WCAG 2.1 AA) */
+.nac-btn:focus-visible,
+.nac-nav-item:focus-visible,
+.nac-range:focus-visible,
+.nac-input:focus-visible,
+.nac-select-full:focus-visible,
+.nac-theme-option:focus-visible {
+  outline: 2px solid var(--accent-primary) !important;
+  outline-offset: 2px !important;
+}
