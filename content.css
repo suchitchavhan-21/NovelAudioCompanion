@@ -46,6 +46,7 @@
 
 /* --- 2. Floating Dynamic Island Player Bar --- */
 #nac-player-container {
+  display: none; /* Minimized to dock orb from start */
   position: fixed;
   bottom: 24px;
   left: 50%;
@@ -462,7 +463,7 @@
 
 /* --- 3. Minimized Dock Puck --- */
 .nac-minimized-orb {
-  display: none;
+  display: flex; /* Visible from start */
   position: fixed;
   bottom: 24px;
   right: 24px;
@@ -480,6 +481,19 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   z-index: 2147483640;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nac-btn-close {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+}
+
+.nac-btn-close:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+  transform: scale(1.08);
 }
 
 .nac-minimized-orb:hover {

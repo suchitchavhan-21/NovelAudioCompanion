@@ -51,6 +51,7 @@
       background: rgba(255, 255, 255, 0.03) !important;
     }
     #nac-player-container {
+      display: none;
       position: fixed;
       bottom: 24px;
       left: 50%;
@@ -223,6 +224,51 @@
       z-index: 2147483647;
       pointer-events: none;
     }
+    .nac-minimized-orb {
+      display: flex;
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 48px;
+      height: 48px;
+      background: rgba(13, 17, 23, 0.88);
+      backdrop-filter: blur(24px) saturate(190%);
+      -webkit-backdrop-filter: blur(24px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #f8fafc;
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      z-index: 2147483640;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .nac-minimized-orb:hover {
+      transform: scale(1.1);
+      background: #2563eb;
+      box-shadow: 0 16px 36px rgba(37, 99, 235, 0.45);
+    }
+    .nac-minimized-orb.speaking {
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 12px 32px rgba(0, 0, 0, 0.5);
+      animation: nac-orb-pulse 2s infinite;
+    }
+    @keyframes nac-orb-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5), 0 12px 32px rgba(0, 0, 0, 0.5); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0), 0 12px 32px rgba(0, 0, 0, 0.5); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 12px 32px rgba(0, 0, 0, 0.5); }
+    }
+    .nac-btn-close {
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+    }
+    .nac-btn-close:hover {
+      background: rgba(239, 68, 68, 0.2) !important;
+      color: #f87171 !important;
+      transform: scale(1.08);
+    }
   `;
   document.head.appendChild(style);
 
@@ -308,6 +354,29 @@
     }
   }
 
+  function startKeepAlive() {
+    stopKeepAlive();
+    utteranceStartTime = Date.now();
+    keepAliveInterval = setInterval(() => {
+      if (isPlaying && !isPaused && window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+        if (Date.now() - utteranceStartTime > 12000) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+          utteranceStartTime = Date.now();
+        }
+      } else if (isPaused || !isPlaying) {
+        stopKeepAlive();
+      }
+    }, 3000);
+  }
+
+  function stopKeepAlive() {
+    if (keepAliveInterval) {
+      clearInterval(keepAliveInterval);
+      keepAliveInterval = null;
+    }
+  }
+
   function playParagraph(idx) {
     if (idx < 0) idx = 0;
     if (idx >= paragraphs.length) {
@@ -331,7 +400,7 @@
     });
 
     window.speechSynthesis.cancel();
-    clearInterval(keepAliveInterval);
+    stopKeepAlive();
     window.__nac_active_utterances__.clear();
     restoreActiveWordDom();
 
@@ -393,7 +462,7 @@
     utterance.onend = () => {
       restoreActiveWordDom();
       window.__nac_active_utterances__.delete(utterance);
-      clearInterval(keepAliveInterval);
+      stopKeepAlive();
       if (isPlaying && !isPaused) {
         setTimeout(() => {
           if (isPlaying && !isPaused) playParagraph(currentIdx + 1);
@@ -404,26 +473,17 @@
     utterance.onerror = () => {
       restoreActiveWordDom();
       window.__nac_active_utterances__.delete(utterance);
-      clearInterval(keepAliveInterval);
+      stopKeepAlive();
       if (isPlaying && !isPaused) playParagraph(currentIdx + 1);
     };
 
     window.speechSynthesis.speak(utterance);
-
-    // Keep-alive: only pulse if single utterance exceeds 12s
-    keepAliveInterval = setInterval(() => {
-      if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-        if (Date.now() - utteranceStartTime > 12000) {
-          window.speechSynthesis.pause();
-          window.speechSynthesis.resume();
-          utteranceStartTime = Date.now();
-        }
-      }
-    }, 3000);
+    startKeepAlive();
   }
 
   function pausePlayback() {
     if (isPlaying && !isPaused) {
+      stopKeepAlive();
       window.speechSynthesis.pause();
       isPaused = true;
       updateUI();
@@ -432,9 +492,14 @@
 
   function resumePlayback() {
     if (isPlaying && isPaused) {
-      window.speechSynthesis.resume();
-      isPaused = false;
-      updateUI();
+      if (!window.speechSynthesis.speaking) {
+        playParagraph(currentIdx);
+      } else {
+        window.speechSynthesis.resume();
+        isPaused = false;
+        startKeepAlive();
+        updateUI();
+      }
     } else {
       playParagraph(currentIdx);
     }
@@ -443,7 +508,7 @@
   function stopPlayback() {
     isPlaying = false;
     isPaused = false;
-    clearInterval(keepAliveInterval);
+    stopKeepAlive();
     window.speechSynthesis.cancel();
     window.__nac_active_utterances__.clear();
     restoreActiveWordDom();
@@ -514,9 +579,48 @@
           <option value="2.0">2.0x</option>
         </select>
         <button class="nac-autonext-btn" id="nac-autonext-btn" title="Toggle Auto-Next Chapter"><span class="nac-dot"></span>Auto: ON</button>
+        <button class="nac-btn" id="nac-minimize-btn" title="Minimize player">—</button>
+        <button class="nac-btn nac-btn-close" id="nac-close-btn" title="Close player">✕</button>
       </div>
     `;
+    playerContainer.style.display = 'none'; // Minimized by default
     document.body.appendChild(playerContainer);
+
+    // Minimized Dock Orb
+    const minimizedOrb = document.createElement('div');
+    minimizedOrb.className = 'nac-minimized-orb';
+    minimizedOrb.title = 'Open Novel Audio Companion (Click to expand)';
+    minimizedOrb.setAttribute('role', 'button');
+    minimizedOrb.setAttribute('tabindex', '0');
+    minimizedOrb.setAttribute('aria-label', 'Open Novel Audio Companion player');
+    minimizedOrb.innerHTML = '<span style="font-size: 18px;">🎧</span>';
+    document.body.appendChild(minimizedOrb);
+
+    function expandPlayer() {
+      minimizedOrb.style.display = 'none';
+      playerContainer.style.display = 'block';
+      playBtn?.focus();
+    }
+    function minimizePlayer() {
+      playerContainer.style.display = 'none';
+      minimizedOrb.style.display = 'flex';
+    }
+    function closePlayer() {
+      stopPlayback();
+      playerContainer.style.display = 'none';
+      minimizedOrb.style.display = 'flex';
+      showToast('Companion closed. Click the 🎧 dock icon anytime to reopen.');
+    }
+
+    playerContainer.querySelector('#nac-minimize-btn').onclick = minimizePlayer;
+    playerContainer.querySelector('#nac-close-btn').onclick = closePlayer;
+    minimizedOrb.onclick = expandPlayer;
+    minimizedOrb.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        expandPlayer();
+      }
+    };
 
     playBtn = playerContainer.querySelector('#nac-play-btn');
     progressLabel = playerContainer.querySelector('#nac-progress-label');
@@ -603,6 +707,7 @@
       dragging = false;
       try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
     };
+    handle.onpointercancel = handle.onpointerup;
   }
 
   function updateUI() {
@@ -612,6 +717,8 @@
     playBtn.classList.toggle('playing', isActivelyPlaying);
     const eq = playerContainer?.querySelector('#nac-equalizer');
     if (eq) eq.classList.toggle('playing', isActivelyPlaying);
+    const orb = document.querySelector('.nac-minimized-orb');
+    if (orb) orb.classList.toggle('speaking', isActivelyPlaying);
     if (progressLabel) progressLabel.textContent = `${currentIdx + 1} / ${paragraphs.length}`;
     if (progressTime) {
       const left = Math.max(0, paragraphs.length - (currentIdx + 1));
@@ -632,7 +739,10 @@
       p.classList.add('nac-paragraph-target');
       p.onclick = (e) => {
         if (window.getSelection()?.toString().length > 0) return;
-        playParagraph(idx);
+        const isPlayerOpen = playerContainer && playerContainer.style.display !== 'none';
+        if (isPlaying || isPlayerOpen) {
+          playParagraph(idx);
+        }
       };
     });
 

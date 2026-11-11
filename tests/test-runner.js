@@ -161,6 +161,83 @@ assert(
 assert(applyDictionary(null, testRules) === '', 'Null input handling returns empty string safely');
 assert(applyDictionary(undefined, testRules) === '', 'Undefined input handling returns empty string safely');
 
+// --- Test 5: Speech Engine Keep-Alive & Pause Integrity ---
+console.log('\n5. Speech Engine Keep-Alive & Pause Integrity Tests:');
+const contentJsCode = fs.readFileSync('content.js', 'utf8');
+const userJsCode = fs.readFileSync('novel-audio-companion.user.js', 'utf8');
+
+// Ensure pausePlayback stops keepAlive
+assert(
+  /function\s+pausePlayback\s*\(\)\s*\{[^}]*stopKeepAlive\(\)/.test(contentJsCode),
+  'content.js: pausePlayback() explicitly stops keep-alive watchdog timer'
+);
+assert(
+  /function\s+pausePlayback\s*\(\)\s*\{[^}]*stopKeepAlive\(\)/.test(userJsCode),
+  'novel-audio-companion.user.js: pausePlayback() explicitly stops keep-alive watchdog timer'
+);
+
+// Ensure keep-alive checks !isPaused
+assert(
+  contentJsCode.includes('if (isPlaying && !isPaused && window.speechSynthesis.speaking'),
+  'content.js: keep-alive interval strictly guards against isPaused'
+);
+assert(
+  userJsCode.includes('if (isPlaying && !isPaused && window.speechSynthesis.speaking'),
+  'novel-audio-companion.user.js: keep-alive interval strictly guards against isPaused'
+);
+
+// --- Test 6: Minimized-by-Default, Expand-on-Click & Close Integration ---
+console.log('\n6. Minimized-by-Default & Player Lifecycle Tests:');
+const contentCssCode = fs.readFileSync('content.css', 'utf8');
+
+assert(
+  /#nac-player-container\s*\{[^}]*display:\s*none/s.test(contentCssCode),
+  'content.css: #nac-player-container is set to display: none from start'
+);
+assert(
+  /\.nac-minimized-orb\s*\{[^}]*display:\s*flex/s.test(contentCssCode),
+  'content.css: .nac-minimized-orb is set to display: flex from start'
+);
+assert(
+  contentJsCode.includes('playerContainer.style.display = \'none\';') &&
+  contentJsCode.includes('minimizedOrb.style.display = \'flex\';'),
+  'content.js: UI starts minimized with docked orb visible'
+);
+assert(
+  contentJsCode.includes('id="nac-close-btn"') && contentJsCode.includes('function closePlayer()'),
+  'content.js: close button (✕) and closePlayer() implemented'
+);
+assert(
+  userJsCode.includes('id="nac-close-btn"') && userJsCode.includes('function closePlayer()'),
+  'novel-audio-companion.user.js: close button (✕) and closePlayer() implemented'
+);
+assert(
+  contentJsCode.includes('if (isPlaying || isPlayerOpen || isReaderActive)'),
+  'content.js: paragraph click-to-read is guarded so it only starts when player is active'
+);
+assert(
+  userJsCode.includes('if (isPlaying || isPlayerOpen)'),
+  'novel-audio-companion.user.js: paragraph click-to-read is guarded so it only starts when player is active'
+);
+
+// --- Test 7: Cybersecurity & Hostile Input Resilience ---
+console.log('\n7. Cybersecurity & Hostile Input Resilience Tests:');
+const optionsJsCode = fs.readFileSync('options/options.js', 'utf8');
+
+// Verify ReDoS defense in options.js
+assert(
+  optionsJsCode.includes('.replace(/^\\(\\?i\\)/, \'\')'),
+  'options.js: strictly strips invalid PCRE (?i) flags on imported rules'
+);
+assert(
+  optionsJsCode.includes('Math.max(0.5, Math.min(3.0, source.rate))'),
+  'options.js: validates and clamps rate strictly within safe boundaries'
+);
+assert(
+  optionsJsCode.includes('[\'midnight\', \'oled\', \'sepia\', \'light\'].includes(source.readerTheme)'),
+  'options.js: readerTheme strictly whitelisted against injection'
+);
+
 // --- Summary ---
 console.log('\n----------------------------------------');
 if (failedTests === 0) {

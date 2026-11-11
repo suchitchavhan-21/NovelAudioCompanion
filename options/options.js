@@ -751,13 +751,80 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
 
-        // Whitelist valid schema fields only
-        const allowedKeys = Object.keys(defaults);
+        // Strict Schema Validation & Sanitization
         const sanitized = {};
-        for (const key of allowedKeys) {
-          if (source[key] !== undefined) {
-            sanitized[key] = source[key];
-          }
+
+        if (typeof source.rate === 'number' && !isNaN(source.rate)) {
+          sanitized.rate = Math.max(0.5, Math.min(3.0, source.rate));
+        }
+        if (typeof source.pitch === 'number' && !isNaN(source.pitch)) {
+          sanitized.pitch = Math.max(0.7, Math.min(1.3, source.pitch));
+        }
+        if (typeof source.volume === 'number' && !isNaN(source.volume)) {
+          sanitized.volume = Math.max(0, Math.min(1.0, source.volume));
+        }
+        if (typeof source.voiceURI === 'string') {
+          sanitized.voiceURI = source.voiceURI.slice(0, 150);
+        }
+        if (typeof source.sentencePauseMs === 'number' && !isNaN(source.sentencePauseMs)) {
+          sanitized.sentencePauseMs = Math.max(0, Math.min(500, source.sentencePauseMs));
+        }
+        if (typeof source.paragraphPauseMs === 'number' && !isNaN(source.paragraphPauseMs)) {
+          sanitized.paragraphPauseMs = Math.max(50, Math.min(1000, source.paragraphPauseMs));
+        }
+        if (source.autoNext !== undefined) sanitized.autoNext = Boolean(source.autoNext);
+        if (source.wordHighlight !== undefined) sanitized.wordHighlight = Boolean(source.wordHighlight);
+        if (source.cleanAds !== undefined) sanitized.cleanAds = Boolean(source.cleanAds);
+        if (source.cleanComments !== undefined) sanitized.cleanComments = Boolean(source.cleanComments);
+
+        if (Array.isArray(source.dictionaryRules)) {
+          sanitized.dictionaryRules = source.dictionaryRules.filter(r =>
+            r && typeof r === 'object' && typeof r.pattern === 'string' && r.pattern.trim().length > 0
+          ).slice(0, 200).map((r, i) => ({
+            id: typeof r.id === 'string' ? r.id.slice(0, 50) : String(Date.now() + i),
+            enabled: Boolean(r.enabled !== false),
+            isRegex: Boolean(r.isRegex),
+            pattern: String(r.pattern).trim().slice(0, 250).replace(/^\(\?i\)/, ''),
+            replacement: typeof r.replacement === 'string' ? r.replacement.slice(0, 250) : '',
+            category: typeof r.category === 'string' ? r.category.slice(0, 50) : 'general'
+          }));
+        }
+
+        if (Array.isArray(source.filterRules)) {
+          sanitized.filterRules = source.filterRules.filter(f =>
+            f && typeof f === 'object' && typeof f.pattern === 'string' && f.pattern.trim().length > 0
+          ).slice(0, 100).map((f, i) => ({
+            id: typeof f.id === 'string' ? f.id.slice(0, 50) : `f_${Date.now() + i}`,
+            enabled: Boolean(f.enabled !== false),
+            pattern: String(f.pattern).trim().slice(0, 250).replace(/^\(\?i\)/, ''),
+            isRegex: Boolean(f.isRegex)
+          }));
+        }
+
+        if (Array.isArray(source.customSites)) {
+          sanitized.customSites = source.customSites.filter(s =>
+            s && typeof s === 'object' && typeof s.domain === 'string' && s.domain.trim().length > 0
+          ).slice(0, 50).map(s => ({
+            domain: String(s.domain).trim().slice(0, 100),
+            contentSelector: typeof s.contentSelector === 'string' ? s.contentSelector.trim().slice(0, 200) : '',
+            nextSelector: typeof s.nextSelector === 'string' ? s.nextSelector.trim().slice(0, 200) : ''
+          }));
+        }
+
+        if (['midnight', 'oled', 'sepia', 'light'].includes(source.readerTheme)) {
+          sanitized.readerTheme = source.readerTheme;
+        }
+        if (['serif', 'sans', 'inter', 'dyslexic'].includes(source.readerFont)) {
+          sanitized.readerFont = source.readerFont;
+        }
+        if (typeof source.readerFontSize === 'number' && !isNaN(source.readerFontSize)) {
+          sanitized.readerFontSize = Math.max(12, Math.min(36, source.readerFontSize));
+        }
+        if (typeof source.readerLineHeight === 'number' && !isNaN(source.readerLineHeight)) {
+          sanitized.readerLineHeight = Math.max(1.2, Math.min(2.5, source.readerLineHeight));
+        }
+        if (typeof source.readerMaxWidth === 'number' && !isNaN(source.readerMaxWidth)) {
+          sanitized.readerMaxWidth = Math.max(500, Math.min(1400, source.readerMaxWidth));
         }
 
         settings = { ...settings, ...sanitized };

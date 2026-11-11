@@ -393,7 +393,12 @@
         // Prevent click when selecting text
         const selection = window.getSelection();
         if (selection && selection.toString().length > 0) return;
-        playParagraph(idx);
+
+        // Start only when user wants it: player is open, speech is already active, or in reader mode
+        const isPlayerOpen = playerContainer && playerContainer.style.display !== 'none';
+        if (isPlaying || isPlayerOpen || isReaderActive) {
+          playParagraph(idx);
+        }
       };
     });
   }
@@ -525,6 +530,31 @@
   }
 
   // --- 9. Speech Synthesis Engine (Smooth, Freeze-Free Narration) ---
+  function startKeepAlive() {
+    stopKeepAlive();
+    utteranceStartTime = Date.now();
+    keepAliveInterval = setInterval(() => {
+      // Must be actively playing, not user-paused, and synthesis engine actively speaking
+      if (isPlaying && !isPaused && window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+        const elapsed = Date.now() - utteranceStartTime;
+        if (elapsed > 12000) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+          utteranceStartTime = Date.now(); // reset timer
+        }
+      } else if (isPaused || !isPlaying) {
+        stopKeepAlive();
+      }
+    }, 3000);
+  }
+
+  function stopKeepAlive() {
+    if (keepAliveInterval) {
+      clearInterval(keepAliveInterval);
+      keepAliveInterval = null;
+    }
+  }
+
   function playParagraph(index) {
     if (index < 0) index = 0;
     if (index >= paragraphs.length) {
@@ -546,7 +576,7 @@
 
     // Clean active speech cleanly
     window.speechSynthesis.cancel();
-    clearInterval(keepAliveInterval);
+    stopKeepAlive();
     window.__nac_active_utterances__.clear();
 
     const rawText = (paragraphs[currentIdx].textContent || '').trim();
@@ -577,7 +607,7 @@
     utterance.onend = () => {
       restoreActiveWordDom();
       window.__nac_active_utterances__.delete(utterance);
-      clearInterval(keepAliveInterval);
+      stopKeepAlive();
 
       if (isPlaying && !isPaused) {
         const pauseDelay = Math.max(50, Math.min(1000, parseInt(settings.paragraphPauseMs || 280, 10)));
@@ -592,30 +622,19 @@
     utterance.onerror = (e) => {
       restoreActiveWordDom();
       window.__nac_active_utterances__.delete(utterance);
-      clearInterval(keepAliveInterval);
+      stopKeepAlive();
       if (isPlaying && !isPaused) {
         playParagraph(currentIdx + 1);
       }
     };
 
     window.speechSynthesis.speak(utterance);
-
-    // Humanized keep-alive: ONLY pulse if a single paragraph utterance has been running past 12s
-    // to prevent Chromium 15s timeout without causing blind 10-second audio stutters!
-    keepAliveInterval = setInterval(() => {
-      if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-        const elapsed = Date.now() - utteranceStartTime;
-        if (elapsed > 12000) {
-          window.speechSynthesis.pause();
-          window.speechSynthesis.resume();
-          utteranceStartTime = Date.now(); // reset timer
-        }
-      }
-    }, 3000);
+    startKeepAlive();
   }
 
   function pausePlayback() {
     if (isPlaying && !isPaused) {
+      stopKeepAlive();
       window.speechSynthesis.pause();
       isPaused = true;
       updateUI();
@@ -626,11 +645,17 @@
 
   function resumePlayback() {
     if (isPlaying && isPaused) {
-      window.speechSynthesis.resume();
-      isPaused = false;
-      updateUI();
-      updateMediaSession();
-      notifyBadge('▶');
+      if (!window.speechSynthesis.speaking) {
+        // Fallback if Chromium speech service dropped utterance during prolonged pause
+        playParagraph(currentIdx);
+      } else {
+        window.speechSynthesis.resume();
+        isPaused = false;
+        startKeepAlive();
+        updateUI();
+        updateMediaSession();
+        notifyBadge('▶');
+      }
     } else {
       playParagraph(currentIdx);
     }
@@ -639,7 +664,7 @@
   function stopPlayback() {
     isPlaying = false;
     isPaused = false;
-    clearInterval(keepAliveInterval);
+    stopKeepAlive();
     window.speechSynthesis.cancel();
     window.__nac_active_utterances__.clear();
     clearActiveHighlight();
@@ -998,7 +1023,8 @@
         <button class="nac-sleep-pill" id="nac-sleep-btn" title="Sleep Timer" aria-label="Sleep Timer">⏱️ Sleep</button>
         <button class="nac-btn" id="nac-reader-btn" title="Clean Reader Mode (Alt+Shift+R)" aria-label="Toggle Clean Reader Mode">📖</button>
         <button class="nac-btn" id="nac-more-btn" title="Voice & Audio Settings" aria-label="Voice and Audio Settings">🎙️</button>
-        <button class="nac-btn" id="nac-minimize-btn" title="Minimize floating bar" aria-label="Minimize Player Bar">—</button>
+        <button class="nac-btn" id="nac-minimize-btn" title="Minimize floating bar (Alt+Shift+M)" aria-label="Minimize Player Bar">—</button>
+        <button class="nac-btn nac-btn-close" id="nac-close-btn" title="Close player (Alt+Shift+X)" aria-label="Close Player Bar">✕</button>
 
         <!-- Secondary Voice & Audio Popover -->
         <div class="nac-more-popover" id="nac-more-popover" style="display: none;">
@@ -1027,15 +1053,17 @@
       </div>
     `;
 
+    playerContainer.style.display = 'none'; // Minimized by default
     document.body.appendChild(playerContainer);
 
     // Minimized Dock Orb
     minimizedOrb = document.createElement('div');
     minimizedOrb.className = 'nac-minimized-orb';
-    minimizedOrb.title = 'Open Novel Audio Companion';
+    minimizedOrb.title = 'Open Novel Audio Companion (Click to expand)';
     minimizedOrb.setAttribute('role', 'button');
     minimizedOrb.setAttribute('tabindex', '0');
     minimizedOrb.setAttribute('aria-label', 'Open Novel Audio Companion player');
+    minimizedOrb.style.display = 'flex';
     minimizedOrb.innerHTML = `
       <div class="nac-orb-content">
         <span class="nac-orb-icon">🎧</span>
@@ -1144,14 +1172,38 @@
       chrome.runtime?.sendMessage?.({ action: 'NAC_OPEN_OPTIONS' });
     });
 
-    playerContainer.querySelector('#nac-minimize-btn').addEventListener('click', () => {
-      playerContainer.style.display = 'none';
-      minimizedOrb.style.display = 'flex';
-    });
-
-    minimizedOrb.addEventListener('click', () => {
+    function expandPlayer() {
       minimizedOrb.style.display = 'none';
       playerContainer.style.display = 'block';
+      playBtn?.focus();
+    }
+
+    function minimizePlayer() {
+      playerContainer.style.display = 'none';
+      minimizedOrb.style.display = 'flex';
+      minimizedOrb.focus();
+    }
+
+    function closePlayer() {
+      stopPlayback();
+      clearInterval(sleepIntervalId);
+      sleepSecondsRemaining = 0;
+      updateSleepButton();
+      playerContainer.style.display = 'none';
+      minimizedOrb.style.display = 'flex';
+      showToast('Companion closed. Click the 🎧 dock icon anytime to reopen.');
+      minimizedOrb.focus();
+    }
+
+    playerContainer.querySelector('#nac-minimize-btn').addEventListener('click', minimizePlayer);
+    playerContainer.querySelector('#nac-close-btn').addEventListener('click', closePlayer);
+
+    minimizedOrb.addEventListener('click', expandPlayer);
+    minimizedOrb.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        expandPlayer();
+      }
     });
 
     makeDraggable(playerContainer);
@@ -1159,9 +1211,22 @@
     // Safe contextual hotkeys (Avoid intercepting normal typing or webpage navigation)
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
-      if (isReaderActive && e.code === 'Space') {
+      if (e.key === 'Escape') {
+        if (morePopover && morePopover.style.display !== 'none') {
+          morePopover.style.display = 'none';
+        } else if (playerContainer.style.display !== 'none') {
+          minimizePlayer();
+        }
+      } else if (isReaderActive && e.code === 'Space') {
         e.preventDefault();
         playBtn.click();
+      } else if (e.altKey && e.shiftKey && (e.code === 'KeyM' || e.key === 'M' || e.key === 'm')) {
+        e.preventDefault();
+        if (playerContainer.style.display !== 'none') minimizePlayer();
+        else expandPlayer();
+      } else if (e.altKey && e.shiftKey && (e.code === 'KeyX' || e.key === 'X' || e.key === 'x')) {
+        e.preventDefault();
+        closePlayer();
       } else if (e.altKey && e.code === 'ArrowRight') {
         e.preventDefault();
         nextParagraph();
@@ -1207,12 +1272,15 @@
       el.style.top = `${newTop}px`;
     });
 
-    handle.addEventListener('pointerup', (e) => {
+    const endDrag = (e) => {
       if (isDragging) {
         isDragging = false;
         try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
       }
-    });
+    };
+
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
   }
 
   function populateVoiceSelect() {
@@ -1292,7 +1360,13 @@
       }
 
       if (req.action === 'CMD_TOGGLE_PLAY' || req.action === 'TOGGLE_PLAY') {
-        if (!isPlaying) playParagraph(currentIdx);
+        if (!isPlaying) {
+          if (playerContainer && playerContainer.style.display === 'none') {
+            playerContainer.style.display = 'block';
+            if (minimizedOrb) minimizedOrb.style.display = 'none';
+          }
+          playParagraph(currentIdx);
+        }
         else if (isPaused) resumePlayback();
         else pausePlayback();
         sendResponse({ isPlaying, isPaused, currentIdx, totalParagraphs: paragraphs.length });

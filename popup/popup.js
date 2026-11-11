@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const speedChips = document.querySelectorAll('.nac-chip');
   const toggleAutoNext = document.getElementById('nac-toggle-autonext');
   const btnToggleReader = document.getElementById('nac-toggle-reader-btn');
+  const btnTogglePlayer = document.getElementById('nac-toggle-player-btn');
   const btnCleanDom = document.getElementById('nac-clean-dom-btn');
   const btnSettings = document.getElementById('nac-open-settings');
 
@@ -169,6 +170,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.close();
     } catch (_) {}
   });
+
+  if (btnTogglePlayer) {
+    btnTogglePlayer.addEventListener('click', async () => {
+      if (!activeTab?.id) return;
+      try {
+        await chrome.tabs.sendMessage(activeTab.id, { action: 'TOGGLE_PLAYER' });
+        window.close();
+      } catch (_) {}
+    });
+  }
 
   btnCleanDom.addEventListener('click', async () => {
     if (!activeTab?.id) return;
